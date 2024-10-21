@@ -54,12 +54,24 @@ void generate_map(MapNode map[MAP_SIZE][MAP_SIZE]) {
             }
         }
     }
+}
 
+void propogate_race_distances(MapNode map[MAP_SIZE][MAP_SIZE]) {
     // Fill out distances
     for (int x = 0; x <= 1; x++) for (int y = 0; y <= 1; y++) {
         MapNode node = map[MAP_SIZE / 2 - x][MAP_SIZE / 2 - y];
         propogate_distances(0, &node, y == 1 ? SOUTH : NORTH, x == 1 ? WEST : EAST);
     }
+}
+
+void propogate_rehome_distances(MapNode map[MAP_SIZE][MAP_SIZE]) {
+    MapNode node = map[0][0];
+    propogate_distances(0, &node, NORTH, EAST);
+}
+
+
+void map_node(MapNode *node) {
+    node->mapped = true;
 }
 
 void sever_path(MapNode *node, Orientation absolute_wall_orientation) {
@@ -68,7 +80,9 @@ void sever_path(MapNode *node, Orientation absolute_wall_orientation) {
     MapNode *severed_node = node->connected_nodes[absolute_wall_orientation];
 
     // Sever node
+    //std::cerr << "Wall orientation: " << absolute_wall_orientation << " Inverse orientation: " << (absolute_wall_orientation + 2) % 4 << std::endl;
     node->connected_nodes[absolute_wall_orientation] = NULL;
+    if (severed_node != NULL) severed_node->connected_nodes[(absolute_wall_orientation + 2) % 4] = NULL;
 
     // Update both nodes
     // TODO: Can prolly be made more efficient by not updating one of the two nodes if they aren't affected by this but maybe not
@@ -112,12 +126,23 @@ Orientation get_most_optimal_node_direction(MapNode *node) {
         MapNode *connected_node = node->connected_nodes[i];
         if (connected_node != NULL) {
             int connected_node_distance = connected_node->distance;
+            //std::cerr << "   Wall " << i << " DNE     Distance: " << connected_node_distance << std::endl;
             if (connected_node_distance < lowest_distance) {
                 lowest_distance = connected_node_distance;
                 lowest_orientation = static_cast<Orientation>(i);
+                //std::cerr << "      Is lowest wall" << std::endl;
             }
+        } else {
+            //std::cerr << "   Wall " << i << " exists" << std::endl;
         }
     }
 
     return lowest_orientation;
+}
+
+double percent_mapped(MapNode map[MAP_SIZE][MAP_SIZE]) {
+    int mapped_nodes = 0;
+    for (int x = 0; x < MAP_SIZE; x++) for (int y = 0; y < MAP_SIZE; y++) map[x][y].mapped ? mapped_nodes ++ : mapped_nodes;
+
+    return mapped_nodes * 1.0 / (MAP_SIZE * MAP_SIZE);
 }

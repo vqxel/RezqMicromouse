@@ -15,7 +15,17 @@ typedef struct {
     int y = 0;
 } Position;
 
-MapNode map[MAP_SIZE][MAP_SIZE];
+typedef enum {
+    SEARCHING,
+    REHOMING,
+    RUNNING,
+} State;
+
+State state = SEARCHING;
+int times_searched = 1;
+
+MapNode race_map[MAP_SIZE][MAP_SIZE];
+MapNode rehome_map[MAP_SIZE][MAP_SIZE];
 
 Position last_position = Position();
 Position position =  Position();
@@ -77,35 +87,100 @@ void moveForward() {
     }
 }
 
-int main(int argc, char* argv[]) {
-    generate_map(map);
+void move_to_next_node(MapNode map[MAP_SIZE][MAP_SIZE]) {
     update_map_viz(map);
+    Orientation target_dir = get_most_optimal_node_direction(&map[position.x][position.y]);
+
+    int delta_theta = orientation - target_dir; // + means turn left | - means turn right
+
+    if (abs(delta_theta) > 2) delta_theta = signbit(delta_theta) ? 1 : -1;
+
+    //std::cerr << "Target Dir: " << target_dir << "     Orientation: " << orientation << "     Delta Theta: " << delta_theta << std::endl; 
+
+    for (int i = 0; i < delta_theta; i++) turnLeft();
+    for (int i = 0; i > delta_theta; i--) turnRight();
+
+    moveForward();
+}
+
+char orientation_to_char(Orientation orientation) {
+    switch (orientation) {
+        case NORTH:
+            return 'n';
+        case EAST:
+            return 'e';
+        case SOUTH:
+            return 's';
+        case WEST:
+            return 'w';
+    }
+    return 'n';
+}
+
+int main(int argc, char* argv[]) {
+    generate_map(race_map);
+    propogate_race_distances(race_map);
+    generate_map(rehome_map);
+    propogate_rehome_distances(rehome_map);
+
+    update_map_viz(race_map);
 
     while (true) {
-        if (map[position.x][position.y].distance == 0) return 0;
+        std::cerr << "STATE: " << state <<  "   (" << position.x << ", " << position.y << ")   Percent mapped: " << percent_mapped(race_map) * 100 << "%"<< std::endl;
 
         if (API::wallLeft()) {
-            sever_path(&map[position.x][position.y], rotate_orientation_left(orientation));
+            Orientation rotated_orientation = rotate_orientation_left(orientation);
+            API::setWall(position.x, position.y, orientation_to_char(rotated_orientation));
+            sever_path(&race_map[position.x][position.y], rotated_orientation);
+            sever_path(&rehome_map[position.x][position.y], rotated_orientation);
         }
         if (API::wallRight()) {
-            sever_path(&map[position.x][position.y], rotate_orientation_right(orientation));
+            Orientation rotated_orientation = rotate_orientation_right(orientation);
+            API::setWall(position.x, position.y, orientation_to_char(rotated_orientation));
+            sever_path(&race_map[position.x][position.y], rotated_orientation);
+            sever_path(&rehome_map[position.x][position.y], rotated_orientation);
         }
         if (API::wallFront()) {
-            sever_path(&map[position.x][position.y], orientation);
+            API::setWall(position.x, position.y, orientation_to_char(orientation));
+            sever_path(&race_map[position.x][position.y], orientation);
+            sever_path(&rehome_map[position.x][position.y], orientation);
         }
 
-        update_map_viz(map);
+        map_node(&race_map[position.x][position.y]);
+        map_node(&rehome_map[position.x][position.y]);
 
-        Orientation target_dir = get_most_optimal_node_direction(&map[position.x][position.y]);
+        //std::cerr << "   Final distance: " << race_map[position.x][position.y].distance << std::endl;
 
-        int delta_theta = orientation - target_dir; // + means turn left | - means turn right
+        Orientation target_dir;
 
-        if (abs(delta_theta) > 2) delta_theta = signbit(delta_theta) ? 1 : -1;
-
-        for (int i = 0; i < delta_theta; i++) turnLeft();
-        for (int i = 0; i > delta_theta; i--) turnRight();
-
-        moveForward();
+        switch (state) {
+            case SEARCHING:
+                if (race_map[position.x][position.y].distance == 0) {
+                    state = REHOMING;
+                    break;
+                }
+                move_to_next_node(race_map);
+                break;
+            case REHOMING:
+                if (rehome_map[position.x][position.y].distance == 0) {
+                    if (percent_mapped(race_map) > 0.75 || times_searched > 2) {
+                        state = RUNNING;
+                    } else {
+                        state = SEARCHING;
+                        times_searched++;
+                    }
+                    break;
+                }
+                move_to_next_node(rehome_map);
+                break;
+            case RUNNING:
+                if (race_map[position.x][position.y].distance == 0) {
+                    state = REHOMING;
+                    break;
+                }
+                move_to_next_node(race_map);
+                break;
+        }
 
         API::setColor(last_position.x, last_position.y, 'c');
         API::setColor(position.x, position.y, 'g');
