@@ -7,7 +7,9 @@
 
 void update_map_viz(MapNode map[MAP_SIZE][MAP_SIZE]) {
     for (int y = MAP_SIZE - 1; y >= 0; y--) for (int x = 0; x < MAP_SIZE; x++)  {
-        API::setText(x, y, std::to_string(map[x][y].distance));
+        MapNode node = map[x][y];
+        API::setText(x, y, node.mapped ? std::to_string(node.distance) : "?");
+        //API::setText(x, y, std::to_string(map[x][y].connected_nodes[1] != NULL));
     }
 }
 
@@ -53,6 +55,9 @@ void generate_map(MapNode map[MAP_SIZE][MAP_SIZE]) {
                     break;
             }
         }
+
+        //if ()
+        //node->distance = abs(target_x - x) + abs(target_y - y);
     }
 }
 
@@ -118,26 +123,74 @@ void update_node(MapNode *node) {
     }
 }
 
-Orientation get_most_optimal_node_direction(MapNode *node) {
+NodeConnection get_most_optimal_node_connection(MapNode *node, bool request_unmapped) {
+    NodeConnection connection = NodeConnection();
+    NodeConnection unmapped_connection = NodeConnection();
     // Get the lowest distance from the surrounding nodes
     int lowest_distance = INT_MAX;
-    Orientation lowest_orientation = NORTH;
+    int lowest_unmapped_distance = INT_MAX;
     for (int i = 0; i < 4; i++) {
         MapNode *connected_node = node->connected_nodes[i];
         if (connected_node != NULL) {
             int connected_node_distance = connected_node->distance;
-            //std::cerr << "   Wall " << i << " DNE     Distance: " << connected_node_distance << std::endl;
             if (connected_node_distance < lowest_distance) {
                 lowest_distance = connected_node_distance;
-                lowest_orientation = static_cast<Orientation>(i);
-                //std::cerr << "      Is lowest wall" << std::endl;
+                connection.connected_node = connected_node;
+                connection.connection_orientation = static_cast<Orientation>(i);
+
+                if (request_unmapped && !connected_node->mapped) {
+                    lowest_unmapped_distance = connected_node_distance;
+                    unmapped_connection.connected_node = connected_node;
+                    unmapped_connection.connection_orientation = static_cast<Orientation>(i);
+                }
             }
-        } else {
-            //std::cerr << "   Wall " << i << " exists" << std::endl;
         }
     }
 
-    return lowest_orientation;
+    // If an unmapped node is requested AND there is a surrounding unmapped node return that unmapped node
+    return request_unmapped && unmapped_connection.connected_node != NULL ? unmapped_connection : connection;
+}
+
+NodeConnections get_most_optimal_node_connections(MapNode *node) {
+    NodeConnections connections = NodeConnections();
+
+    // Get the lowest distance from the surrounding nodes
+    int lowest_distance = INT_MAX;
+    for (int i = 0; i < 4; i++) {
+        MapNode *connected_node = node->connected_nodes[i];
+        if (connected_node != NULL) {
+            int connected_node_distance = connected_node->distance;
+            if (connected_node_distance <= lowest_distance && connected_node->mapped) {
+                // Fill out and add connection
+                NodeConnection connection = NodeConnection();
+                lowest_distance = connected_node_distance;
+                connection.parent_node = node;
+                connection.connected_node = connected_node;
+                connection.connection_orientation = static_cast<Orientation>(i);
+                connections.connections[i] = connection;
+                continue;
+            }
+        }
+
+        // Initialize connections array to an empty node connection if no real connection was established
+        connections.connections[i] = NodeConnection();
+    }
+    
+    // Remove any that were added before the real lowest distance was set
+    for (int i = 0; i < 4; i++) {
+        NodeConnection connection = connections.connections[i];
+        if (connection.connected_node != NULL) {
+            // Prune connections
+            if (connection.connected_node->distance > lowest_distance) {
+                connections.connections[i] = NodeConnection();
+                connections.connections_count--;
+            } else {
+                connections.connections_count++;
+            }
+        }
+    }
+
+    return connections;
 }
 
 double percent_mapped(MapNode map[MAP_SIZE][MAP_SIZE]) {

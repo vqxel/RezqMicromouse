@@ -17,6 +17,17 @@ typedef struct MapNode {
     bool mapped = false;
 } MapNode;
 
+typedef struct {
+    MapNode *parent_node = NULL;
+    MapNode *connected_node = NULL;
+    Orientation connection_orientation;
+} NodeConnection;
+
+typedef struct {
+    NodeConnection connections[4];
+    int connections_count = 0;
+} NodeConnections;
+
 void update_map_viz(MapNode map[MAP_SIZE][MAP_SIZE]);
 
 void generate_map(MapNode map_in[MAP_SIZE][MAP_SIZE]);
@@ -31,6 +42,8 @@ void sever_path(MapNode *node, Orientation absolute_wall_orientation);
 
 void update_node(MapNode *node);
 
-Orientation get_most_optimal_node_direction(MapNode *node);
+NodeConnection get_most_optimal_node_connection(MapNode *node, bool request_unmapped);
+
+NodeConnections get_most_optimal_node_connections(MapNode *node);
 
 double percent_mapped(MapNode map[MAP_SIZE][MAP_SIZE]);
