@@ -8,7 +8,7 @@
 void update_map_viz(MapNode map[MAP_SIZE][MAP_SIZE]) {
     for (int y = MAP_SIZE - 1; y >= 0; y--) for (int x = 0; x < MAP_SIZE; x++)  {
         MapNode node = map[x][y];
-        API::setText(x, y, node.mapped ? std::to_string(node.distance) : "?");
+        API::setText(x, y, node.mapped ? std::to_string(node.distance) : std::to_string(node.distance) + "?");
         //API::setText(x, y, std::to_string(map[x][y].connected_nodes[1] != NULL));
     }
 }

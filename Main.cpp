@@ -142,7 +142,12 @@ bool should_not_explore() {
     return percent_mapped(race_map) > 0.1 || times_searched > 2;
 }
 
-int calculate_paths(MapNode map[MAP_SIZE][MAP_SIZE], MapNode *node, VersatilePathSegment *path_node, int iters, int x, int y) {
+int iters = 0;
+
+int calculate_paths(MapNode map[MAP_SIZE][MAP_SIZE], MapNode *node, VersatilePathSegment *path_node, int x, int y) {
+    iters++;
+    if (iters > 200) return INT_MAX;
+
     bool straight_path_exists = false;
     do {
         if (node->distance == 0) {
@@ -244,7 +249,7 @@ int calculate_paths(MapNode map[MAP_SIZE][MAP_SIZE], MapNode *node, VersatilePat
                 tx += dx;
                 ty += dy;
 
-                path_node->cum_path_lengths[i] = calculate_paths(map, connection.connected_node, next_path_node, iters + 1, tx, ty) + 1;
+                path_node->cum_path_lengths[i] = calculate_paths(map, connection.connected_node, next_path_node, tx, ty) + 1;
             }
         }
     } while (straight_path_exists/* && iters < 3*/);
@@ -470,14 +475,19 @@ int main(int argc, char* argv[]) {
                     if (should_not_explore()) {
                         state = RUNNING;
                         path = VersatilePathSegment();
-                        calculate_paths(race_map, &race_map[0][0], &path, 0, 0, 0);
+                        int best_path_length = calculate_paths(race_map, &race_map[0][0], &path, 0, 0);
+                        iters = 0;
 
-                        RacePathSegment *ideal_path = get_ideal_path(&path);
+                        if (best_path_length == INT_MAX) {
+                            state = SEARCHING;
+                        } else {
+                            RacePathSegment *ideal_path = get_ideal_path(&path);
 
-                        API::clearAllColor();
+                            API::clearAllColor();
 
-                        print_all_paths(&path, 0, 0, 0);
-                        print_ideal_path(ideal_path, 0, 0);
+                            print_all_paths(&path, 0, 0, 0);
+                            print_ideal_path(ideal_path, 0, 0);
+                        }
                     } else {
                         state = SEARCHING;
                         times_searched++;
