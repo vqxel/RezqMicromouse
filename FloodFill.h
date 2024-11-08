@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 
-#define MAP_SIZE 16
+#include "Main.h"
 
 typedef enum {
     NORTH = 0,
@@ -42,7 +42,7 @@ void sever_path(MapNode *node, Orientation absolute_wall_orientation);
 
 void update_node(MapNode *node);
 
-NodeConnection get_most_optimal_node_connection(MapNode *node, bool request_unmapped);
+NodeConnection get_most_optimal_node_connection(MapNode *node, bool request_unmapped, bool randomize_search);
 
 NodeConnections get_most_optimal_node_connections(MapNode *node);
 

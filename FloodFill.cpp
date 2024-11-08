@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <math.h>
+#include <random>
 
 void update_map_viz(MapNode map[MAP_SIZE][MAP_SIZE]) {
     for (int y = MAP_SIZE - 1; y >= 0; y--) for (int x = 0; x < MAP_SIZE; x++)  {
@@ -123,13 +124,16 @@ void update_node(MapNode *node) {
     }
 }
 
-NodeConnection get_most_optimal_node_connection(MapNode *node, bool request_unmapped) {
+NodeConnection get_most_optimal_node_connection(MapNode *node, bool request_unmapped, bool randomize_search) {
     NodeConnection connection = NodeConnection();
     NodeConnection unmapped_connection = NodeConnection();
     // Get the lowest distance from the surrounding nodes
     int lowest_distance = INT_MAX;
     int lowest_unmapped_distance = INT_MAX;
-    for (int i = 0; i < 4; i++) {
+    // Random function to randomly start searching for lowest from left or right
+    bool start_left = rand() & 1;
+
+    for (int i = start_left ? 0 : 3; (i < 4 && start_left) || (i >= 0 && !start_left); i = start_left ? i + 1 : i - 1) {
         MapNode *connected_node = node->connected_nodes[i];
         if (connected_node != NULL) {
             int connected_node_distance = connected_node->distance;
