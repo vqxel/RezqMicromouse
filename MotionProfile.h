@@ -1,14 +1,17 @@
 #pragma once
 
 typedef struct {
-    unsigned short end_ramp_time = 0;
-    unsigned short end_coast_time = 0;
-    unsigned short end_profile_time = 0;
-    int v_max = 0;
-    int a_max = 0;
-    int x_target = 0;
+    float end_ramp_time = 0;
+    float end_coast_time = 0;
+    float end_profile_time = 0;
+    float v_max = 0;
+    float a_max = 0;
+    float x_target = 0;
+
+    float v_initial = 0;
+    float v_final = 0;
 } MotionProfile;
 
-MotionProfile generate_profile(int v_max, int a_max, int x_target);
+MotionProfile generate_profile(float v_max, float a_max, float x_target, float v_initial, float v_final);
 
-int profile_velo_wrt_t(unsigned short time, unsigned short start_time, MotionProfile profile);
+float profile_velo_wrt_t(float time, float start_time, MotionProfile profile);
