@@ -11,4 +11,4 @@ typedef struct {
 
 MotionProfile generate_profile(int v_max, int a_max, int x_target);
 
-int profile_velo_wrt_t(unsigned short time, MotionProfile profile);
+int profile_velo_wrt_t(unsigned short time, unsigned short start_time, MotionProfile profile);

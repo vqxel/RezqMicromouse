@@ -29,6 +29,8 @@ MotionProfile generate_profile(int v_max, int a_max, int x_target) {
         // Adjust v_max to be the max attainable v in the space we have
         profile.v_max = profile.end_profile_time / 2 * a_max;
     }
+
+    return profile;
 }
 
 int profile_velo_wrt_t(unsigned short time, unsigned short start_time, MotionProfile profile) {
