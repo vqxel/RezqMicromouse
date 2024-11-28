@@ -1,45 +1,18 @@
 {
   "board": {
-    "active_layer": 31,
+    "active_layer": 0,
     "active_layer_preset": "",
     "auto_track_width": true,
-    "hidden_netclasses": [],
+    "hidden_netclasses": [
+      "Main Power Rail",
+      "Power"
+    ],
     "hidden_nets": [
-      "Net-(BT1-+)",
-      "GND",
+      "+5V",
       "BATT_NET",
-      "VCC",
       "+5V_NET",
       "+3V3",
-      "3V3_BYP",
-      "Net-(D4-A)",
-      "Net-(D5-A)",
-      "Net-(D6-A)",
-      "USART1_RX",
-      "USART1_TX",
-      "+3V3_NET",
-      "SWO",
-      "M2_OUT_1",
-      "M2_OUT_2",
-      "M2_ENC_A",
-      "M2_ENC_B",
-      "M1_OUT_1",
-      "M1_OUT_2",
-      "M1_ENC_A",
-      "M1_ENC_B",
-      "V_METER",
-      "Net-(S1-Pad3)",
-      "M2_BACK",
-      "M1_FWD",
-      "M2_SPD",
-      "M1_SPD",
-      "M2_FWD",
-      "M1_BACK",
-      "Net-(U7-PB2)",
-      "/BOOT0",
-      "Net-(U7-VSSA)",
-      "POWER_LED",
-      "Net-(D7-A)"
+      "3V3_BYP"
     ],
     "high_contrast_mode": 0,
     "net_color_mode": 1,
@@ -51,17 +24,17 @@
       "zones": 0.6
     },
     "selection_filter": {
-      "dimensions": false,
-      "footprints": false,
-      "graphics": false,
-      "keepouts": false,
+      "dimensions": true,
+      "footprints": true,
+      "graphics": true,
+      "keepouts": true,
       "lockedItems": false,
-      "otherItems": false,
+      "otherItems": true,
       "pads": true,
-      "text": false,
+      "text": true,
       "tracks": true,
       "vias": true,
-      "zones": false
+      "zones": true
     },
     "visible_items": [
       0,
@@ -101,7 +74,7 @@
       40
     ],
     "visible_layers": "ffcffff_ffffffff",
-    "zone_display_mode": 1
+    "zone_display_mode": 0
   },
   "git": {
     "repo_password": "",
