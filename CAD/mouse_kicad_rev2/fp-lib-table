@@ -1,0 +1,5 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "custom_foot")(type "KiCad")(uri "${KIPRJMOD}/custom_foot.pretty")(options "")(descr ""))
+  (lib (name "MM_Library")(type "KiCad")(uri "${KIPRJMOD}/MM_Library.pretty")(options "")(descr ""))
+)

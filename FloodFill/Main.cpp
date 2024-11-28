@@ -166,6 +166,7 @@ int main(int argc, char* argv[]) {
                     if (should_not_explore()) {
                         state = RUNNING;
                         path = VersatilePathSegment();
+                        reset_iters();
                         int best_path_length = calculate_paths(race_map, &race_map[0][0], &path, 0, 0);
 
                         if (best_path_length == INT_MAX) {
