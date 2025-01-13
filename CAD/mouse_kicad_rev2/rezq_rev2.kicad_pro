@@ -593,75 +593,7 @@
     "meta": {
       "version": 3
     },
-    "net_colors": {
-      "+3.3VA": "rgb(255, 0, 255)",
-      "+3V3": "rgb(255, 0, 255)",
-      "+3V3_NET": "rgb(255, 0, 255)",
-      "+5V": "rgb(255, 0, 255)",
-      "+5V_NET": "rgb(255, 0, 255)",
-      "3V3_BYP": "rgb(255, 0, 255)",
-      "AGND": "rgb(0, 255, 0)",
-      "BATT_NET": "rgb(255, 0, 255)",
-      "BUTTON": "rgb(132, 132, 0)",
-      "BUTTON_2": "rgb(132, 132, 0)",
-      "BUTTON_3": "rgb(132, 132, 0)",
-      "BUZZER": "rgb(132, 132, 0)",
-      "EMIT_1": "rgb(0, 0, 255)",
-      "EMIT_2": "rgb(0, 0, 255)",
-      "EMIT_3": "rgb(0, 0, 255)",
-      "EMIT_4": "rgb(0, 0, 255)",
-      "GND": "rgb(0, 255, 0)",
-      "LED_BLUE": "rgb(132, 132, 0)",
-      "LED_GREEN": "rgb(132, 132, 0)",
-      "LED_RED": "rgb(132, 132, 0)",
-      "M1_BACK": "rgb(194, 0, 0)",
-      "M1_ENC_A": "rgb(194, 0, 0)",
-      "M1_ENC_B": "rgb(194, 0, 0)",
-      "M1_FWD": "rgb(194, 0, 0)",
-      "M1_OUT_1": "rgb(194, 0, 0)",
-      "M1_OUT_2": "rgb(194, 0, 0)",
-      "M1_SPD": "rgb(194, 0, 0)",
-      "M2_BACK": "rgb(194, 0, 0)",
-      "M2_ENC_A": "rgb(194, 0, 0)",
-      "M2_ENC_B": "rgb(194, 0, 0)",
-      "M2_FWD": "rgb(194, 0, 0)",
-      "M2_OUT_1": "rgb(194, 0, 0)",
-      "M2_OUT_2": "rgb(194, 0, 0)",
-      "M2_SPD": "rgb(194, 0, 0)",
-      "Net-(BT1-+)": "rgb(255, 0, 255)",
-      "Net-(BZ1-+)": "rgb(132, 132, 0)",
-      "Net-(D0-K)": "rgb(0, 0, 255)",
-      "Net-(D1-K)": "rgb(0, 0, 255)",
-      "Net-(D2-K)": "rgb(0, 0, 255)",
-      "Net-(D3-K)": "rgb(0, 0, 255)",
-      "Net-(D4-A)": "rgb(132, 132, 0)",
-      "Net-(D5-A)": "rgb(132, 132, 0)",
-      "Net-(D6-A)": "rgb(132, 132, 0)",
-      "Net-(J1-Pin_2)": "rgb(0, 132, 0)",
-      "Net-(J1-Pin_3)": "rgb(0, 132, 0)",
-      "Net-(J4-GNDDetect)": "rgb(0, 255, 0)",
-      "Net-(J4-SWO{slash}TDO)": "rgb(0, 255, 0)",
-      "Net-(J4-~{RESET})": "rgb(0, 255, 0)",
-      "Net-(Q10-D)": "rgb(0, 0, 255)",
-      "Net-(Q11-D)": "rgb(0, 0, 255)",
-      "Net-(Q12-D)": "rgb(0, 0, 255)",
-      "Net-(Q8-D)": "rgb(132, 132, 0)",
-      "Net-(Q9-D)": "rgb(0, 0, 255)",
-      "Net-(S1-Pad3)": "rgb(255, 0, 255)",
-      "POWER_LED": "rgb(132, 132, 0)",
-      "RECEIV_1": "rgb(0, 132, 132)",
-      "RECEIV_2": "rgb(0, 132, 132)",
-      "RECEIV_3": "rgb(0, 132, 132)",
-      "RECEIV_4": "rgb(0, 132, 132)",
-      "RST": "rgb(0, 255, 0)",
-      "SWDCLK": "rgb(0, 255, 0)",
-      "SWDIO": "rgb(0, 255, 0)",
-      "SWO": "rgb(0, 255, 0)",
-      "USART1_RX": "rgb(0, 132, 0)",
-      "USART1_TX": "rgb(0, 132, 0)",
-      "VCC": "rgb(255, 0, 255)",
-      "V_METER": "rgb(255, 0, 255)"
-    },
+    "net_colors": null,
     "netclass_assignments": null,
     "netclass_patterns": [
       {
@@ -714,7 +646,7 @@
   },
   "schematic": {
     "annotate_start_num": 0,
-    "bom_export_filename": "",
+    "bom_export_filename": "C:\\Users\\coder\\Downloads\\rezq_rev2.csv",
     "bom_fmt_presets": [],
     "bom_fmt_settings": {
       "field_delimiter": ",",
@@ -764,11 +696,71 @@
           "label": "DNP",
           "name": "${DNP}",
           "show": true
+        },
+        {
+          "group_by": false,
+          "label": "#",
+          "name": "${ITEM_NUMBER}",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Category",
+          "name": "Category",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "DK_Datasheet_Link",
+          "name": "DK_Datasheet_Link",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "DK_Detail_Page",
+          "name": "DK_Detail_Page",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Digi-Key_PN",
+          "name": "Digi-Key_PN",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Family",
+          "name": "Family",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "MPN",
+          "name": "MPN",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Manufacturer",
+          "name": "Manufacturer",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Status",
+          "name": "Status",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Description",
+          "name": "Description",
+          "show": false
         }
       ],
       "filter_string": "",
       "group_symbols": true,
-      "name": "Grouped By Value",
+      "name": "",
       "sort_asc": true,
       "sort_field": "Reference"
     },
