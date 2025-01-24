@@ -635,7 +635,7 @@
       "gencad": "",
       "idf": "",
       "netlist": "mouse4.net",
-      "plot": "",
+      "plot": "manufacturing/",
       "pos_files": "",
       "specctra_dsn": "",
       "step": "",
