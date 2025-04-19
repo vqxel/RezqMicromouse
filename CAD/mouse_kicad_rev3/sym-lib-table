@@ -1,0 +1,8 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "bloo-rescue")(type "Legacy")(uri "${KIPRJMOD}/bloo-rescue.lib")(options "")(descr ""))
+  (lib (name "custom")(type "Legacy")(uri "${KIPRJMOD}/custom.lib")(options "")(descr ""))
+  (lib (name "bloo-copy-rescue")(type "Legacy")(uri "${KIPRJMOD}/bloo copy-rescue.lib")(options "")(descr ""))
+  (lib (name "DCK6_TEX")(type "KiCad")(uri "${KIPRJMOD}/custom_foot.pretty/LM66100DCKR/KiCADv6/footprints.pretty/DCK6_TEX.kicad_sym")(options "")(descr ""))
+  (lib (name "SSM3K3335R")(type "KiCad")(uri "${KIPRJMOD}/custom_foot.pretty/SSM3K335R_LF/KiCADv6/2024-07-14_07-46-32.kicad_sym")(options "")(descr ""))
+)

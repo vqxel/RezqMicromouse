@@ -1,0 +1,4 @@
+../Core/Src/encoders.cpp:11:1:Encoder::Encoder(GPIO_TypeDef*, GPIO_TypeDef*, uint16_t, uint16_t)	1
+../Core/Src/encoders.cpp:16:6:void Encoder::init()	1
+../Core/Src/encoders.cpp:21:6:void Encoder::gpioCallback(uint16_t)	17
+../Core/Src/encoders.cpp:86:9:int32_t Encoder::getPosition()	1
