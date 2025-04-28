@@ -73,7 +73,6 @@ int t = 0;
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 	t++;
 	uint32_t currentCount = __HAL_TIM_GET_COUNTER(htim);
-	enc_gen = currentCount;
 	// this is the left encoder timer
 	if (htim->Instance == TIM4) {
 		enc_right = currentCount;
@@ -130,6 +129,16 @@ int main(void)
 
   HAL_GPIO_WritePin(M1_FWD_GPIO_Port, M1_FWD_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(M1_BCK_GPIO_Port, M1_BCK_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(M2_FWD_GPIO_Port, M1_FWD_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(M2_BCK_GPIO_Port, M1_BCK_Pin, GPIO_PIN_RESET);
+
+  HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(POWER_LED_GPIO_Port, POWER_LED_Pin, GPIO_PIN_RESET);
+
+//	TIM2->CCR3 = 000; // M2
+//	TIM2->CCR4 = 400; // M1
 
   /* USER CODE END 2 */
 
@@ -137,7 +146,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	TIM2->CCR3 = 00;
 	//altfx_loop();
     /* USER CODE END WHILE */
 

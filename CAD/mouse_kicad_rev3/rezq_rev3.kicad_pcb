@@ -11797,7 +11797,7 @@
 		)
 		(fp_arc
 			(start 1.23 9.27)
-			(mid -0.277637 8.581642)
+			(mid -0.277636 8.581642)
 			(end -1 7.09)
 			(stroke
 				(width 0.05)
@@ -20569,7 +20569,7 @@
 		)
 		(fp_arc
 			(start 1.23 9.27)
-			(mid -0.277637 8.581642)
+			(mid -0.277636 8.581642)
 			(end -1 7.09)
 			(stroke
 				(width 0.05)
@@ -25668,7 +25668,7 @@
 		)
 		(fp_arc
 			(start 1.23 9.27)
-			(mid -0.277637 8.581642)
+			(mid -0.277636 8.581642)
 			(end -1 7.09)
 			(stroke
 				(width 0.05)
@@ -28546,7 +28546,7 @@
 		)
 		(fp_arc
 			(start 1.23 9.27)
-			(mid -0.277637 8.581642)
+			(mid -0.277636 8.581642)
 			(end -1 7.09)
 			(stroke
 				(width 0.05)
@@ -45476,7 +45476,7 @@
 		(net 9)
 		(net_name "+3.3VA")
 		(layer "F.Cu")
-		(uuid "575c625d-ea08-4e6f-893b-6ea3fa8b9fa1")
+		(uuid "d9efd593-0789-42e6-925e-4433fe1b5a94")
 		(name "$teardrop_padvia$")
 		(hatch full 0.1)
 		(priority 30000)
