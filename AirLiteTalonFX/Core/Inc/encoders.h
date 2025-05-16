@@ -13,24 +13,17 @@
 
 class Encoder {
 private:
-	GPIO_TypeDef *pinAPort;
-	GPIO_TypeDef *pinBPort;
+	TIM_HandleTypeDef *htim;
 
-	uint16_t pinA;
-	uint16_t pinB;
+	bool inverted;
 
-	GPIO_PinState pinAState;
-	GPIO_PinState pinBState;
-
-	int32_t position;
-
-	int32_t overflows;
-
+	uint16_t rawPos;
+	int64_t pos;
 public:
-	Encoder(GPIO_TypeDef *pinAPort, GPIO_TypeDef *pinBPort, uint16_t pinA, uint16_t pinB);
+	Encoder(TIM_HandleTypeDef *htim, bool inverted);
 
 	void init();
-	void gpioCallback(uint16_t GPIO_Pin);
+	void callback(TIM_HandleTypeDef *htimCall, uint32_t cur);
 
-	int32_t getPosition();
+	int64_t getPosition();
 };

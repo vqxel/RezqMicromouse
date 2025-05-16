@@ -32,14 +32,12 @@ private:
 
 	volatile uint32_t *pwmCcr;
 
+    bool inverted;
+
 public:
-	Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr);
+	Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, bool inverted);
 
 	void setDriveDirection(DriveDirection direction);
 
 	void setDriveDutyCycle(float dutyCycle);
 };
-
-void setDriveDirection(DriveSide driveSide, DriveDirection direction);
-
-void setDriveDutyCycle(DriveSide driveSide, float dutyCycle);

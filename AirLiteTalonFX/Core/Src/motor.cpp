@@ -5,9 +5,9 @@
  *      Author: mine215
  */
 
-#include "drive.h"
+#include <motor.h>
 
-Motor::Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr): forwardPort(forwardPort), backPort(backPort), forwardPin(forwardPin), backPin(backPin), pwmCcr(pwmCcr) {
+Motor::Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, bool inverted): forwardPort(forwardPort), backPort(backPort), forwardPin(forwardPin), backPin(backPin), pwmCcr(pwmCcr), inverted(inverted) {
 	// idk what this init method is called but i'm doing it using c++ stuff!11!1
 }
 
@@ -17,12 +17,12 @@ void Motor::setDriveDirection(DriveDirection direction) {
 
 	switch (direction) {
 	case FORWARD:
-		forwardPinState = GPIO_PIN_SET;
-		backwardPinState = GPIO_PIN_RESET;
+		forwardPinState = inverted ? GPIO_PIN_RESET : GPIO_PIN_SET;
+		backwardPinState = inverted ? GPIO_PIN_SET : GPIO_PIN_RESET;
 		break;
 	case BACKWARD:
-		forwardPinState = GPIO_PIN_RESET;
-		backwardPinState = GPIO_PIN_SET;
+		forwardPinState = inverted ? GPIO_PIN_SET : GPIO_PIN_RESET;
+		backwardPinState = inverted ? GPIO_PIN_RESET : GPIO_PIN_SET;
 		break;
 	case OFF:
 		forwardPinState = GPIO_PIN_RESET;
@@ -46,21 +46,3 @@ void Motor::setDriveDutyCycle(float dutyCycle) {
 
 	*pwmCcr = ccr;
 }
-
-/*void setDriveDutyCycle(DriveSide driveSide, float dutyCycle) {
-	// Clamp duty cycle to legal values
-	if (dutyCycle > 1) {
-		dutyCycle = 1;
-	} else if (dutyCycle < 0) {
-		dutyCycle = 0;
-	}
-
-	int ccr = PWM_ARR * dutyCycle;
-
-	switch (driveSide) {
-	case LEFT:
-		 TIM2->CCR1 = ccr;
-	case RIGHT:
-		 TIM1->CCR3 = ccr;
-	}
-}*/

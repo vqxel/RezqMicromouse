@@ -109,6 +109,8 @@ void Error_Handler(void);
 #define M2_ENC_B_GPIO_Port GPIOB
 #define M2_ENC_A_Pin GPIO_PIN_7
 #define M2_ENC_A_GPIO_Port GPIOB
+#define BUZZER_Pin GPIO_PIN_8
+#define BUZZER_GPIO_Port GPIOB
 #define BUTTON_3_Pin GPIO_PIN_9
 #define BUTTON_3_GPIO_Port GPIOB
 

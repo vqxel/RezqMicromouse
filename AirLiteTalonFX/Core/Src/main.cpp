@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "encoders.h"
+#include "motor.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -48,6 +50,10 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
+Encoder leftEncoder(&htim3, false);
+Encoder rightEncoder(&htim4, false);
+Motor leftMotor(M1_FWD_GPIO_Port, M1_BCK_GPIO_Port, M1_FWD_Pin, M1_BCK_Pin, &TIM2->CCR4, false);
+Motor rightMotor(M2_FWD_GPIO_Port, M2_BCK_GPIO_Port, M2_FWD_Pin, M2_BCK_Pin, &TIM2->CCR3, true);
 
 /* USER CODE END PV */
 
@@ -65,20 +71,10 @@ static void MX_TIM2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-uint32_t enc_left = 0;
-uint32_t enc_right = 0;
-uint32_t enc_gen = 0;
-int t = 0;
-
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
-	t++;
 	uint32_t currentCount = __HAL_TIM_GET_COUNTER(htim);
-	// this is the left encoder timer
-	if (htim->Instance == TIM4) {
-		enc_right = currentCount;
-	} else if (htim->Instance == TIM3) {
-		enc_left = currentCount;
-	}
+	leftEncoder.callback(htim, currentCount);
+	rightEncoder.callback(htim, currentCount);
 }
 
 /* USER CODE END 0 */
@@ -119,26 +115,38 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   //altfx_init();
-  HAL_TIM_Encoder_Start_IT(&htim3, TIM_CHANNEL_ALL);
-  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
+  leftEncoder.init();
+  rightEncoder.init();
 
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
 
   HAL_TIM_Base_Start(&htim2);
 
-  HAL_GPIO_WritePin(M1_FWD_GPIO_Port, M1_FWD_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(M1_BCK_GPIO_Port, M1_BCK_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(M2_FWD_GPIO_Port, M1_FWD_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(M2_BCK_GPIO_Port, M1_BCK_Pin, GPIO_PIN_RESET);
+  leftMotor.setDriveDirection(FORWARD);
+  leftMotor.setDriveDutyCycle(0);
+  rightMotor.setDriveDirection(FORWARD);
+  rightMotor.setDriveDutyCycle(0);
 
   HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(POWER_LED_GPIO_Port, POWER_LED_Pin, GPIO_PIN_RESET);
 
-//	TIM2->CCR3 = 000; // M2
-//	TIM2->CCR4 = 400; // M1
+  uint32_t adc_value = 0;
+
+	HAL_ADCEx_Calibration_Start(&hadc1);
+	HAL_ADC_Start(&hadc1);
+
+	if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK) {
+	  adc_value = HAL_ADC_GetValue(&hadc1);
+	  HAL_ADC_Stop(&hadc1);
+	  volatile uint32_t debug_adc_val = adc_value;
+	  (void)debug_adc_val;
+	}
+
+//TIM2->CCR3 = 00; // M2
+//TIM2->CCR4 = 00; // M1
 
   /* USER CODE END 2 */
 
@@ -167,11 +175,12 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -184,10 +193,10 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -420,6 +429,7 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
@@ -428,7 +438,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, EMIT_3_Pin|EMIT_2_Pin|EMIT_1_Pin|M2_FWD_Pin
-                          |M1_BCK_Pin|M2_BCK_Pin|EMIT_4_Pin, GPIO_PIN_RESET);
+                          |M1_BCK_Pin|M2_BCK_Pin|EMIT_4_Pin|BUZZER_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, M1_FWD_Pin|LED_RED_Pin|LED_BLUE_Pin|LED_GREEN_Pin, GPIO_PIN_RESET);
@@ -447,9 +457,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(BUTTON_2_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : EMIT_3_Pin EMIT_2_Pin EMIT_1_Pin M2_FWD_Pin
-                           M1_BCK_Pin M2_BCK_Pin EMIT_4_Pin */
+                           M1_BCK_Pin M2_BCK_Pin EMIT_4_Pin BUZZER_Pin */
   GPIO_InitStruct.Pin = EMIT_3_Pin|EMIT_2_Pin|EMIT_1_Pin|M2_FWD_Pin
-                          |M1_BCK_Pin|M2_BCK_Pin|EMIT_4_Pin;
+                          |M1_BCK_Pin|M2_BCK_Pin|EMIT_4_Pin|BUZZER_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

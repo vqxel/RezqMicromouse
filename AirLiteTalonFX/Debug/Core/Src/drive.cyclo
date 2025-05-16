@@ -1,3 +1,0 @@
-../Core/Src/drive.cpp:10:1:Motor::Motor(GPIO_TypeDef*, GPIO_TypeDef*, uint16_t, uint16_t, volatile uint32_t*)	1
-../Core/Src/drive.cpp:14:6:void Motor::setDriveDirection(DriveDirection)	5
-../Core/Src/drive.cpp:37:6:void Motor::setDriveDutyCycle(float)	3
