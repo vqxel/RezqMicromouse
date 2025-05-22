@@ -7,8 +7,12 @@
 
 #include <motor.h>
 
-Motor::Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, bool inverted): forwardPort(forwardPort), backPort(backPort), forwardPin(forwardPin), backPin(backPin), pwmCcr(pwmCcr), inverted(inverted) {
+Motor::Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, TIM_HandleTypeDef *tim, uint32_t timChannel, bool inverted): forwardPort(forwardPort), backPort(backPort), forwardPin(forwardPin), backPin(backPin), pwmCcr(pwmCcr), tim(tim), timChannel(timeChannel), inverted(inverted) {
 	// idk what this init method is called but i'm doing it using c++ stuff!11!1
+}
+
+void Motor::init() {
+  HAL_TIM_PWM_Start(tim, timChannel);
 }
 
 void Motor::setDriveDirection(DriveDirection direction) {
@@ -36,8 +40,8 @@ void Motor::setDriveDirection(DriveDirection direction) {
 
 void Motor::setDriveDutyCycle(float dutyCycle) {
 	// Clamp duty cycle to legal values
-	if (dutyCycle > 1) {
-		dutyCycle = 1;
+	if (dutyCycle > 0.72) {
+		dutyCycle = 0.72;
 	} else if (dutyCycle < 0) {
 		dutyCycle = 0;
 	}
@@ -45,4 +49,17 @@ void Motor::setDriveDutyCycle(float dutyCycle) {
 	int ccr = PWM_ARR * dutyCycle;
 
 	*pwmCcr = ccr;
+}
+
+void Motor::set(float dutyCycle) {
+	if (dutyCycle == 0) {
+		if (!brakeMode) setDriveDirection(OFF);
+		else setDriveDirection(FORWARD);
+	} else if (dutyCycle > 0) {
+		setDriveDirection(FORWARD);
+	} else if (dutyCycle < 0) {
+		setDriveDirection(BACKWARD);
+	}
+
+	setDriveDutyCycle(dutyCycle);
 }

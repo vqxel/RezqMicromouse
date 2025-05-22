@@ -1,7 +1,7 @@
 #pragma once
 
 class PIDFF {
-  private:
+private:
     float kP;
     float kD;
     float kV;
@@ -10,7 +10,7 @@ class PIDFF {
     float deltaTime;
 
     float lastError;
-  public:
+public:
     PIDFF(float kP, float kD, float kV, float kS, float deltaTime);
 
     float calculate(float target, float current);

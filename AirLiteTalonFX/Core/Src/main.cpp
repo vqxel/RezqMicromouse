@@ -20,10 +20,10 @@
 #include "main.h"
 #include "encoders.h"
 #include "motor.h"
+#include "vsens.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include "altfx_entry.h"
 
 /* USER CODE END Includes */
 
@@ -52,8 +52,9 @@ TIM_HandleTypeDef htim4;
 /* USER CODE BEGIN PV */
 Encoder leftEncoder(&htim3, false);
 Encoder rightEncoder(&htim4, false);
-Motor leftMotor(M1_FWD_GPIO_Port, M1_BCK_GPIO_Port, M1_FWD_Pin, M1_BCK_Pin, &TIM2->CCR4, false);
-Motor rightMotor(M2_FWD_GPIO_Port, M2_BCK_GPIO_Port, M2_FWD_Pin, M2_BCK_Pin, &TIM2->CCR3, true);
+Motor leftMotor(M1_FWD_GPIO_Port, M1_BCK_GPIO_Port, M1_FWD_Pin, M1_BCK_Pin, &TIM2->CCR4, &htim2, TIM_CHANNEL_3, false);
+Motor rightMotor(M2_FWD_GPIO_Port, M2_BCK_GPIO_Port, M2_FWD_Pin, M2_BCK_Pin, &TIM2->CCR3, &htim2, TIM_CHANNEL_4, true);
+VSens vsens(&hadc1);
 
 /* USER CODE END PV */
 
@@ -113,40 +114,17 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start(&htim2);
 
   //altfx_init();
   leftEncoder.init();
   rightEncoder.init();
 
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
+  leftMotor.set(0);
+  rightMotor.set(0);
 
-  HAL_TIM_Base_Start(&htim2);
-
-  leftMotor.setDriveDirection(FORWARD);
-  leftMotor.setDriveDutyCycle(0);
-  rightMotor.setDriveDirection(FORWARD);
-  rightMotor.setDriveDutyCycle(0);
-
-  HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(POWER_LED_GPIO_Port, POWER_LED_Pin, GPIO_PIN_RESET);
-
-  uint32_t adc_value = 0;
-
-	HAL_ADCEx_Calibration_Start(&hadc1);
-	HAL_ADC_Start(&hadc1);
-
-	if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK) {
-	  adc_value = HAL_ADC_GetValue(&hadc1);
-	  HAL_ADC_Stop(&hadc1);
-	  volatile uint32_t debug_adc_val = adc_value;
-	  (void)debug_adc_val;
-	}
-
-//TIM2->CCR3 = 00; // M2
-//TIM2->CCR4 = 00; // M1
+  vsens.init();
+  while (!vsens.poll());
 
   /* USER CODE END 2 */
 

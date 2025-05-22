@@ -35,9 +35,16 @@ private:
     bool inverted;
 
 public:
-	Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, bool inverted);
+
+    bool brakeMode = false;
+
+	Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, TIM_HandleTypeDef *tim, uint32_t timChannel, bool inverted);
+
+	void init();
 
 	void setDriveDirection(DriveDirection direction);
 
 	void setDriveDutyCycle(float dutyCycle);
+
+	void set(float dutyCycle);
 };
