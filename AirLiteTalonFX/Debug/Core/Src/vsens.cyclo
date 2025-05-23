@@ -1,0 +1,3 @@
+../Core/Src/vsens.cpp:10:1:VSens::VSens(ADC_HandleTypeDef*, uint32_t)	1
+../Core/Src/vsens.cpp:14:7:float VSens::getVolts()	1
+../Core/Src/vsens.cpp:20:7:float VSens::getCompMult()	1

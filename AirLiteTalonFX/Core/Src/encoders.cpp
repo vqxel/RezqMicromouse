@@ -8,7 +8,7 @@
 #include "encoders.h"
 #include <limits>
 
-Encoder::Encoder(TIM_HandleTypeDef *htim, bool inverted): htim(htim), inverted(inverted), rawPos(0), pos(0) {
+Encoder::Encoder(TIM_HandleTypeDef *htim, bool inverted, float conversionFactor): htim(htim), inverted(inverted), rawPos(0), pos(0), _conversionFactor(conversionFactor) {
 }
 
 void Encoder::init() {
@@ -26,7 +26,11 @@ void Encoder::callback(TIM_HandleTypeDef *htimCall, uint32_t cur) {
 	rawPos = current_raw;
 }
 
-
 int64_t Encoder::getPosition() {
 	return pos;
+}
+
+float Encoder::getPositionMeters() {
+	posMeters = pos * _conversionFactor;
+	return posMeters;
 }

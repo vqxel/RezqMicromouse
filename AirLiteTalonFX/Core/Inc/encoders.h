@@ -17,13 +17,18 @@ private:
 
 	bool inverted;
 
+	float _conversionFactor;
+	float posMeters;
+
 	uint16_t rawPos;
 	int64_t pos;
 public:
-	Encoder(TIM_HandleTypeDef *htim, bool inverted);
+	Encoder(TIM_HandleTypeDef *htim, bool inverted, float conversionFactor);
 
 	void init();
 	void callback(TIM_HandleTypeDef *htimCall, uint32_t cur);
 
 	int64_t getPosition();
+
+	float getPositionMeters();
 };

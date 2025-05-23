@@ -1,11 +1,11 @@
-../Core/Src/main.cpp:74:6:void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef*)	1
-../Core/Src/main.cpp:87:5:int main()	2
-../Core/Src/main.cpp:165:6:void SystemClock_Config()	4
-../Core/Src/main.cpp:212:13:void MX_ADC1_Init()	3
-../Core/Src/main.cpp:259:13:void MX_TIM2_Init()	7
-../Core/Src/main.cpp:322:13:void MX_TIM3_Init()	3
-../Core/Src/main.cpp:371:13:void MX_TIM4_Init()	3
-../Core/Src/main.cpp:420:13:void MX_GPIO_Init()	1
-../Core/Src/main.cpp:496:6:void Error_Handler()	1
-../Core/Src/main.cpp:505:1:void __static_initialization_and_destruction_0()	1
-../Core/Src/main.cpp:505:1:cpp)	1
+../Core/Src/main.cpp:81:6:void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef*)	1
+../Core/Src/main.cpp:97:5:int main()	2
+../Core/Src/main.cpp:186:6:void SystemClock_Config()	4
+../Core/Src/main.cpp:233:13:void MX_ADC1_Init()	2
+../Core/Src/main.cpp:278:13:void MX_TIM2_Init()	7
+../Core/Src/main.cpp:341:13:void MX_TIM3_Init()	3
+../Core/Src/main.cpp:390:13:void MX_TIM4_Init()	3
+../Core/Src/main.cpp:439:13:void MX_GPIO_Init()	1
+../Core/Src/main.cpp:515:6:void Error_Handler()	1
+../Core/Src/main.cpp:524:1:void __static_initialization_and_destruction_0()	1
+../Core/Src/main.cpp:524:1:cpp)	1

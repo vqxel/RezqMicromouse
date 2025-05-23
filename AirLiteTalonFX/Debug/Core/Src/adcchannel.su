@@ -1,0 +1,5 @@
+../Core/Src/adcchannel.cpp:10:1:ADCChannel::ADCChannel(ADC_HandleTypeDef*, uint32_t)	24	static
+../Core/Src/adcchannel.cpp:17:6:bool ADCChannel::enable()	16	static
+../Core/Src/adcchannel.cpp:25:6:void ADCChannel::init()	16	static
+../Core/Src/adcchannel.cpp:34:6:bool ADCChannel::poll()	16	static
+../Core/Src/adcchannel.cpp:46:7:float ADCChannel::getRaw()	16	static

@@ -1,0 +1,3 @@
+../Core/Src/dsens.cpp:10:1:DSens::DSens(GPIO_TypeDef*, uint16_t, ADC_HandleTypeDef*, uint32_t, float, float)	24	static
+../Core/Src/dsens.cpp:14:6:bool DSens::updateSens()	24	static
+../Core/Src/dsens.cpp:27:7:float DSens::getDist()	24	static

@@ -32,11 +32,14 @@ private:
 
 	volatile uint32_t *pwmCcr;
 
+	TIM_HandleTypeDef *tim;
+	uint32_t timChannel;
+
     bool inverted;
 
 public:
 
-    bool brakeMode = false;
+    bool brakeMode;
 
 	Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, TIM_HandleTypeDef *tim, uint32_t timChannel, bool inverted);
 

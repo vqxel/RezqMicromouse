@@ -10,12 +10,24 @@
 #include "main.h"
 #include "constants.h"
 #include "stm32f1xx_hal.h"
+#include "adcchannel.h"
 
-class DSens {
+class DSens: public ADCChannel {
 private:
-	GPIO_TypeDef *emitterPort;
-	uint16_t emitterPin;
-	GPIO_TypeDef *recPort;
-	uint16_t recPin;
+	GPIO_TypeDef *_emitterPort;
+	uint16_t _emitterPin;
 
+	ADC_HandleTypeDef *_adc;
+
+	float _dist;
+
+	float _convSlope;
+	float _convInter;
+
+public:
+	DSens(GPIO_TypeDef *emitterPort, uint16_t emitterPin, ADC_HandleTypeDef *adc, uint32_t channel, float convSlope, float convInter);
+
+	bool updateSens();
+
+	float getDist();
 };

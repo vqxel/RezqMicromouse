@@ -10,20 +10,17 @@
 #include "constants.h"
 #include "stm32f1xx_hal.h"
 #include "main.h"
+#include "adcchannel.h"
 
-class VSens {
+class VSens: public ADCChannel {
 private:
 	ADC_HandleTypeDef *adc;
 
-	float _adcValue;
 	float _volts;
 	float _compMult;
 public:
-	VSens(ADC_HandleTypeDef *adc);
+	VSens(ADC_HandleTypeDef *adc, uint32_t channel);
 
-	void init();
-	bool poll();
-	float getRaw();
 	float getVolts();
 
 	float getCompMult();

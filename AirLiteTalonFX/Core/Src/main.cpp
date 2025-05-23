@@ -21,6 +21,7 @@
 #include "encoders.h"
 #include "motor.h"
 #include "vsens.h"
+#include "dsens.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -50,11 +51,16 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
-Encoder leftEncoder(&htim3, false);
-Encoder rightEncoder(&htim4, false);
+Encoder leftEncoder(&htim3, false, 0.01);
+Encoder rightEncoder(&htim4, false, 0.001);
 Motor leftMotor(M1_FWD_GPIO_Port, M1_BCK_GPIO_Port, M1_FWD_Pin, M1_BCK_Pin, &TIM2->CCR4, &htim2, TIM_CHANNEL_3, false);
 Motor rightMotor(M2_FWD_GPIO_Port, M2_BCK_GPIO_Port, M2_FWD_Pin, M2_BCK_Pin, &TIM2->CCR3, &htim2, TIM_CHANNEL_4, true);
-VSens vsens(&hadc1);
+VSens vsens(&hadc1, ADC_CHANNEL_1);
+
+DSens flSens(EMIT_1_GPIO_Port, EMIT_1_Pin, &hadc1, ADC_CHANNEL_9, 1, 1);
+DSens lSens(EMIT_2_GPIO_Port, EMIT_2_Pin, &hadc1, ADC_CHANNEL_8, 1, 1);
+DSens rSens(EMIT_3_GPIO_Port, EMIT_3_Pin, &hadc1, ADC_CHANNEL_5, 1, 1);
+DSens frSens(EMIT_4_GPIO_Port, EMIT_4_Pin, &hadc1, ADC_CHANNEL_4, 1, 1);
 
 /* USER CODE END PV */
 
@@ -77,6 +83,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 	leftEncoder.callback(htim, currentCount);
 	rightEncoder.callback(htim, currentCount);
 }
+
+uint32_t lastTick = 0;
+uint32_t curTick = 0;
+uint32_t dt = 0;
 
 /* USER CODE END 0 */
 
@@ -120,22 +130,51 @@ int main(void)
   leftEncoder.init();
   rightEncoder.init();
 
+
+  leftMotor.init();
+  rightMotor.init();
+
+  leftMotor.brakeMode = false;
+  rightMotor.brakeMode = false;
+
   leftMotor.set(0);
   rightMotor.set(0);
 
   vsens.init();
   while (!vsens.poll());
+  vsens.getVolts();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  lastTick = HAL_GetTick();
   while (1)
   {
+	  curTick = HAL_GetTick();
+
+	  dt = curTick - lastTick;
+
 	//altfx_loop();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  flSens.updateSens();
+	  flSens.getDist();
+	  lSens.updateSens();
+	  lSens.getDist();
+	  rSens.updateSens();
+	  rSens.getDist();
+	  frSens.updateSens();
+	  frSens.getDist();
+	  vsens.poll();
+	  vsens.getVolts();
+	  vsens.getCompMult();
+	  lastTick = curTick;
+
+	  leftEncoder.getPositionMeters();
+	  rightEncoder.getPositionMeters();
   }
   /* USER CODE END 3 */
 }
@@ -198,8 +237,6 @@ static void MX_ADC1_Init(void)
 
   /* USER CODE END ADC1_Init 0 */
 
-  ADC_ChannelConfTypeDef sConfig = {0};
-
   /* USER CODE BEGIN ADC1_Init 1 */
 
   /* USER CODE END ADC1_Init 1 */
@@ -219,14 +256,14 @@ static void MX_ADC1_Init(void)
   }
 
   /** Configure Regular Channel
-  */
+
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
-  }
+  }*/
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */

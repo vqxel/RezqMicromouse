@@ -116,6 +116,8 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
+#define ADC_VOLTS(x) x / 4096 * 3.3 * 3
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

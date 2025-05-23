@@ -7,7 +7,7 @@
 
 #include <motor.h>
 
-Motor::Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, TIM_HandleTypeDef *tim, uint32_t timChannel, bool inverted): forwardPort(forwardPort), backPort(backPort), forwardPin(forwardPin), backPin(backPin), pwmCcr(pwmCcr), tim(tim), timChannel(timeChannel), inverted(inverted) {
+Motor::Motor(GPIO_TypeDef *forwardPort, GPIO_TypeDef *backPort, uint16_t forwardPin, uint16_t backPin, volatile uint32_t *pwmCcr, TIM_HandleTypeDef *tim, uint32_t timChannel, bool inverted): forwardPort(forwardPort), backPort(backPort), forwardPin(forwardPin), backPin(backPin), pwmCcr(pwmCcr), tim(tim), timChannel(timChannel), inverted(inverted) {
 	// idk what this init method is called but i'm doing it using c++ stuff!11!1
 }
 

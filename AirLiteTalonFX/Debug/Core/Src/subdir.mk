@@ -6,10 +6,13 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
 ../Core/Src/PIDFF.cpp \
+../Core/Src/adcchannel.cpp \
+../Core/Src/dsens.cpp \
 ../Core/Src/encoders.cpp \
 ../Core/Src/led.cpp \
 ../Core/Src/main.cpp \
-../Core/Src/motor.cpp 
+../Core/Src/motor.cpp \
+../Core/Src/vsens.cpp 
 
 C_SRCS += \
 ../Core/Src/stm32f1xx_hal_msp.c \
@@ -27,6 +30,8 @@ C_DEPS += \
 
 OBJS += \
 ./Core/Src/PIDFF.o \
+./Core/Src/adcchannel.o \
+./Core/Src/dsens.o \
 ./Core/Src/encoders.o \
 ./Core/Src/led.o \
 ./Core/Src/main.o \
@@ -35,14 +40,18 @@ OBJS += \
 ./Core/Src/stm32f1xx_it.o \
 ./Core/Src/syscalls.o \
 ./Core/Src/sysmem.o \
-./Core/Src/system_stm32f1xx.o 
+./Core/Src/system_stm32f1xx.o \
+./Core/Src/vsens.o 
 
 CPP_DEPS += \
 ./Core/Src/PIDFF.d \
+./Core/Src/adcchannel.d \
+./Core/Src/dsens.d \
 ./Core/Src/encoders.d \
 ./Core/Src/led.d \
 ./Core/Src/main.d \
-./Core/Src/motor.d 
+./Core/Src/motor.d \
+./Core/Src/vsens.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -54,7 +63,7 @@ Core/Src/%.o Core/Src/%.su Core/Src/%.cyclo: ../Core/Src/%.c Core/Src/subdir.mk
 clean: clean-Core-2f-Src
 
 clean-Core-2f-Src:
-	-$(RM) ./Core/Src/PIDFF.cyclo ./Core/Src/PIDFF.d ./Core/Src/PIDFF.o ./Core/Src/PIDFF.su ./Core/Src/encoders.cyclo ./Core/Src/encoders.d ./Core/Src/encoders.o ./Core/Src/encoders.su ./Core/Src/led.cyclo ./Core/Src/led.d ./Core/Src/led.o ./Core/Src/led.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/motor.cyclo ./Core/Src/motor.d ./Core/Src/motor.o ./Core/Src/motor.su ./Core/Src/stm32f1xx_hal_msp.cyclo ./Core/Src/stm32f1xx_hal_msp.d ./Core/Src/stm32f1xx_hal_msp.o ./Core/Src/stm32f1xx_hal_msp.su ./Core/Src/stm32f1xx_it.cyclo ./Core/Src/stm32f1xx_it.d ./Core/Src/stm32f1xx_it.o ./Core/Src/stm32f1xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f1xx.cyclo ./Core/Src/system_stm32f1xx.d ./Core/Src/system_stm32f1xx.o ./Core/Src/system_stm32f1xx.su
+	-$(RM) ./Core/Src/PIDFF.cyclo ./Core/Src/PIDFF.d ./Core/Src/PIDFF.o ./Core/Src/PIDFF.su ./Core/Src/adcchannel.cyclo ./Core/Src/adcchannel.d ./Core/Src/adcchannel.o ./Core/Src/adcchannel.su ./Core/Src/dsens.cyclo ./Core/Src/dsens.d ./Core/Src/dsens.o ./Core/Src/dsens.su ./Core/Src/encoders.cyclo ./Core/Src/encoders.d ./Core/Src/encoders.o ./Core/Src/encoders.su ./Core/Src/led.cyclo ./Core/Src/led.d ./Core/Src/led.o ./Core/Src/led.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/motor.cyclo ./Core/Src/motor.d ./Core/Src/motor.o ./Core/Src/motor.su ./Core/Src/stm32f1xx_hal_msp.cyclo ./Core/Src/stm32f1xx_hal_msp.d ./Core/Src/stm32f1xx_hal_msp.o ./Core/Src/stm32f1xx_hal_msp.su ./Core/Src/stm32f1xx_it.cyclo ./Core/Src/stm32f1xx_it.d ./Core/Src/stm32f1xx_it.o ./Core/Src/stm32f1xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f1xx.cyclo ./Core/Src/system_stm32f1xx.d ./Core/Src/system_stm32f1xx.o ./Core/Src/system_stm32f1xx.su ./Core/Src/vsens.cyclo ./Core/Src/vsens.d ./Core/Src/vsens.o ./Core/Src/vsens.su
 
 .PHONY: clean-Core-2f-Src
 
