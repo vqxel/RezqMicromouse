@@ -11,6 +11,7 @@
 #include "constants.h"
 #include "stm32f1xx_hal.h"
 #include "adcchannel.h"
+#include "math.h"
 
 class DSens: public ADCChannel {
 private:

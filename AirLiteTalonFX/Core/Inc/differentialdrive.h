@@ -1,14 +1,15 @@
-/*
- * differentialdrive.h
- *
- *  Created on: May 22, 2025
- *      Author: rezq
- */
-
 #pragma once
 
 class DifferentialDrive {
-  private:
-    float _rad; // meters
-    
-}
+public:
+	float _rad;
+
+	DifferentialDrive(float rad);
+
+	typedef struct {
+		float lv;
+		float rv;
+	} WheelSpeeds;
+
+	WheelSpeeds drive(float velo, float angularVelo);
+};

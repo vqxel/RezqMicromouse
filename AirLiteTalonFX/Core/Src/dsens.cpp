@@ -25,6 +25,6 @@ bool DSens::updateSens() {
 
 
 float DSens::getDist() {
-	_dist = _convSlope * getRaw() + _convInter;
+	_dist = _convSlope * pow(getRaw(), _convInter);
 	return _dist;
 }
