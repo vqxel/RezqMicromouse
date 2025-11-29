@@ -22,7 +22,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "PMW3389:PMW3360DM"
 			(at 0 0 0)
 			(effects
 				(font

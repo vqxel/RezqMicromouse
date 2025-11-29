@@ -9,4 +9,7 @@
   (lib (name "TS30011-M050QFNR")(type "KiCad")(uri "/home/rezq/Downloads/TS30011_M050QFNR/KiCADv6/footprints.pretty")(options "")(descr ""))
   (lib (name "BC832")(type "KiCad")(uri "/home/rezq/Downloads/BC832")(options "")(descr ""))
   (lib (name "AS07-XTAL")(type "KiCad")(uri "/home/rezq/Downloads/ABS07_32_768KHZ_T")(options "")(descr ""))
+  (lib (name "BUTTON")(type "KiCad")(uri "/home/rezq/Downloads/SKRPABE010")(options "")(descr ""))
+  (lib (name "POWER_SWITCH")(type "KiCad")(uri "/home/rezq/Downloads/L101011MS02Q/KiCADv6/footprints.pretty")(options "")(descr ""))
+  (lib (name "PMW3389")(type "KiCad")(uri "/home/rezq/Downloads/PMW Sensor Models-20251129T035809Z-1-001/PMW Sensor Models")(options "")(descr ""))
 )

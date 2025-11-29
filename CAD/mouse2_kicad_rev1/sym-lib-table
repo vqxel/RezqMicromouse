@@ -10,4 +10,6 @@
   (lib (name "PMW3389DM-T3QU")(type "KiCad")(uri "${KIPRJMOD}/PMW3389DM-T3QU.kicad_sym")(options "")(descr ""))
   (lib (name "BC832")(type "KiCad")(uri "/home/rezq/Downloads/BC832/BC832.kicad_sym")(options "")(descr ""))
   (lib (name "ABS07-XTAL")(type "KiCad")(uri "/home/rezq/Downloads/ABS07_32_768KHZ_T/ABS07-32.768KHZ-T.kicad_sym")(options "")(descr ""))
+  (lib (name "BUTTON")(type "KiCad")(uri "/home/rezq/Downloads/SKRPABE010/SKRPABE010.kicad_sym")(options "")(descr ""))
+  (lib (name "POWER_SWITCH")(type "KiCad")(uri "/home/rezq/Downloads/L101011MS02Q/KiCADv6/2025-11-29_02-54-28.kicad_sym")(options "")(descr ""))
 )
