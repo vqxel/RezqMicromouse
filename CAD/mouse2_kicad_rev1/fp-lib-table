@@ -2,7 +2,7 @@
   (version 7)
   (lib (name "custom_foot")(type "KiCad")(uri "${KIPRJMOD}/custom_foot.pretty")(options "")(descr ""))
   (lib (name "MM_Library")(type "KiCad")(uri "${KIPRJMOD}/MM_Library.pretty")(options "")(descr ""))
-  (lib (name "STM32F405VGT6")(type "KiCad")(uri "/home/rezq/Downloads/LIB_STM32F405VGT6/STM32F405VGT6/KiCad")(options "")(descr ""))
+  (lib (name "STM32F405VGT6")(type "KiCad")(uri "/home/rezq/Downloads/LIB_STM32F405VGT6/STM32F405VGT6/KiCad")(options "")(descr "")(disabled))
   (lib (name "STM32F405RGT6")(type "KiCad")(uri "/home/rezq/Downloads/LIB_STM32F405RGT6/STM32F405RGT6/KiCad")(options "")(descr ""))
   (lib (name "ICM-45605")(type "KiCad")(uri "/home/rezq/Downloads/ICM-45605")(options "")(descr ""))
   (lib (name "TPS7A2033PDBVR")(type "KiCad")(uri "/home/rezq/Downloads/TPS7A2033PDBVR")(options "")(descr ""))
