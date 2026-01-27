@@ -24,6 +24,7 @@
 #include "stdbool.h"
 #include "stdlib.h"
 #include "string.h"
+#include "math.h"
 
 /* USER CODE END Includes */
 
@@ -75,26 +76,23 @@ static void MX_UART4_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-float x_float = 0;
-float y_float = 0;
-float z_float = 0;
+float x_theta = 0;
+float y_theta = 0;
+float z_theta = 0;
 
-float x_smooth = 0;
-float y_smooth = 0;
-float z_smooth = 0;
+float x_accel = 0;
+float y_accel = 0;
+float z_accel = 0;
 
-float x_pos = 0;
-float y_pos = 0;
-float z_pos = 0;
-
-uint8_t txData[2] = {0x72 | ((uint8_t)(true) << 7), 0x00};
-uint8_t rxData[2] = {0x00, 0x00};
+float x_velo = 0;
+float y_velo = 0;
+float z_velo = 0;
 
 void IMU_WriteRegister(uint8_t addressByte, uint8_t value) {
 	uint8_t txData[2] = {addressByte & 0x7F, value};
 
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi1, txData, 2, 1000);
+	HAL_SPI_Transmit(&hspi1, txData, 2, 100);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 }
 
@@ -108,7 +106,7 @@ void IMU_ReadRegister(uint8_t addressByte, uint8_t *buffer, size_t len) {
 	txData[0] = addressByte | 0x80;
 
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, txData, rxData, len, 1000);
+	HAL_SPI_TransmitReceive(&hspi1, txData, rxData, len, 100);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 
 	memcpy(buffer, &rxData[1], len--);
@@ -142,13 +140,9 @@ void IMU_ReadGyro(float *gyroReadings) {
 	int16_t y_raw = (int16_t)(((uint16_t)gyroBuffer[3] << 8) | gyroBuffer[2]);
 	int16_t z_raw = (int16_t)(((uint16_t)gyroBuffer[5] << 8) | gyroBuffer[4]);
 
-	float x = (float)x_raw / 131.0f;
-	float y = (float)y_raw / 131.0f;
-	float z = (float)z_raw / 131.0f;
-
-	gyroReadings[0] = x;
-	gyroReadings[1] = y;
-	gyroReadings[2] = z;
+	gyroReadings[0] = (float)x_raw / 32.8f; // Pitch (pitch down/ccw from left is +)
+	gyroReadings[1] = (float)y_raw / 32.8f; // Roll (roll ccw from back is +)
+	gyroReadings[2] = (float)z_raw / 32.8f; // Yaw (ccw + from top)
 }
 
 void IMU_CalibrateGyro(float *gyroOffset) {
@@ -171,6 +165,43 @@ void IMU_CalibrateGyro(float *gyroOffset) {
 	gyroOffset[2] = z_sum / (float) samples;
 
 	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+}
+
+void IMU_ReadAccel(float *accelReadings) {
+	uint8_t accelBuffer[6];
+	IMU_ReadRegister(0x00, accelBuffer, 6);
+
+	// Change from uint16_t to int16_t
+	int16_t x_raw = (int16_t)(((uint16_t)accelBuffer[1] << 8) | accelBuffer[0]);
+	int16_t y_raw = (int16_t)(((uint16_t)accelBuffer[3] << 8) | accelBuffer[2]);
+	int16_t z_raw = (int16_t)(((uint16_t)accelBuffer[5] << 8) | accelBuffer[4]);
+
+	accelReadings[0] = (float)x_raw / 8192.0f * 9.80665; // + x is left
+	accelReadings[1] = -(float)y_raw / 8192.0f * 9.80665; // + y is forwards
+	accelReadings[2] = (float)z_raw / 8192.0f * 9.80665; // + z is up
+}
+
+
+void IMU_CalibrateAccel(float *accelOffset) {
+	HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+
+	const uint32_t samples = 1000;
+	float x_sum = 0, y_sum = 0, z_sum = 0;
+
+	float accelReadings[3];
+	for(int i = 0; i < samples; i++) {
+		IMU_ReadAccel(accelReadings);
+		x_sum += accelReadings[0];
+		y_sum += accelReadings[1];
+		z_sum += accelReadings[2];
+		HAL_Delay(1);
+	}
+
+	accelOffset[0] = x_sum / (float) samples;
+	accelOffset[1] = y_sum / (float) samples;
+	accelOffset[2] = z_sum / (float) samples;
+
+	HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
 }
 
 /* USER CODE END 0 */
@@ -238,14 +269,17 @@ int main(void)
 	  // Set to +- 4g accel res
 	  imu_init_failed |= !IMU_TryWriteRegister(0x1B, 0b0110110, 5);
 
-	  // Set to 250 dps gyro res
-	  imu_init_failed |= !IMU_TryWriteRegister(0x1C, 0b01000110, 5);
+	  // Set to 1000 dps gyro res
+	  imu_init_failed |= !IMU_TryWriteRegister(0x1C, 0b00100110, 5);
 
 	  imu_initialized = !imu_init_failed;
   }
 
   float gyroOffset[3];
   IMU_CalibrateGyro(gyroOffset);
+
+  float accelOffset[3];
+  IMU_CalibrateAccel(accelOffset);
 
   /* USER CODE END 2 */
 
@@ -261,24 +295,28 @@ int main(void)
 	  float gyroReadings[3];
 	  IMU_ReadGyro(gyroReadings);
 
-	  x_float = gyroReadings[0] - gyroOffset[0];
-	  y_float = gyroReadings[1] - gyroOffset[1];
-	  z_float = gyroReadings[2] - gyroOffset[2];
-
-	  float alpha = 0.1;
-	  x_smooth = alpha * x_float + x_smooth * (1-alpha);
-	  y_smooth = alpha * y_float + y_smooth * (1-alpha);
-	  z_smooth = alpha * z_float + z_smooth * (1-alpha);
+	  float x_float = gyroReadings[0] - gyroOffset[0];
+	  float y_float = gyroReadings[1] - gyroOffset[1];
+	  float z_float = gyroReadings[2] - gyroOffset[2];
 
 	  uint32_t tickTimeNew = DWT->CYCCNT;
 	  uint32_t delta = tickTimeNew - tickTime;
 	  float dt = (float)delta / (float)HAL_RCC_GetHCLKFreq();
-
-	  x_pos += x_smooth * dt;
-	  y_pos += y_smooth * dt;
-	  z_pos += z_smooth * dt;
-
 	  tickTime = tickTimeNew;
+
+	  x_theta += x_float * dt;
+	  y_theta += y_float * dt;
+	  z_theta += z_float * dt;
+
+	  float accelReadings[3];
+	  IMU_ReadAccel(accelReadings);
+	  x_accel = accelReadings[0] - accelOffset[0];
+	  y_accel = accelReadings[1] - accelOffset[1 ];
+	  z_accel = accelReadings[2] - accelOffset[2];
+
+	  x_velo += x_accel * dt;
+	  y_velo += y_accel * dt;
+	  z_velo += z_accel * dt;
   }
   /* USER CODE END 3 */
 }
