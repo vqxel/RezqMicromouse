@@ -21,6 +21,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stdbool.h"
+#include "stdlib.h"
+#include "string.h"
 
 /* USER CODE END Includes */
 
@@ -72,6 +75,104 @@ static void MX_UART4_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+float x_float = 0;
+float y_float = 0;
+float z_float = 0;
+
+float x_smooth = 0;
+float y_smooth = 0;
+float z_smooth = 0;
+
+float x_pos = 0;
+float y_pos = 0;
+float z_pos = 0;
+
+uint8_t txData[2] = {0x72 | ((uint8_t)(true) << 7), 0x00};
+uint8_t rxData[2] = {0x00, 0x00};
+
+void IMU_WriteRegister(uint8_t addressByte, uint8_t value) {
+	uint8_t txData[2] = {addressByte & 0x7F, value};
+
+	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi1, txData, 2, 1000);
+	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
+}
+
+void IMU_ReadRegister(uint8_t addressByte, uint8_t *buffer, size_t len) {
+	len++;
+
+	uint8_t txData[len];
+	uint8_t rxData[len];
+
+	memset(txData, 0, len);
+	txData[0] = addressByte | 0x80;
+
+	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
+	HAL_SPI_TransmitReceive(&hspi1, txData, rxData, len, 1000);
+	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
+
+	memcpy(buffer, &rxData[1], len--);
+}
+
+bool IMU_WriteAndValidateRegister(uint8_t addressByte, uint8_t value) {
+	uint8_t buffer[1] = {0x00};
+	IMU_WriteRegister(addressByte, value);
+	IMU_ReadRegister(addressByte, buffer, 1);
+
+	return buffer[0] == value;
+}
+
+bool IMU_TryWriteRegister(uint8_t addressByte, uint8_t value, uint8_t maxAttempts) {
+	for (int attempts = 0; attempts < maxAttempts; attempts++) {
+		bool success = IMU_WriteAndValidateRegister(addressByte, value);
+		if (success) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void IMU_ReadGyro(float *gyroReadings) {
+	uint8_t gyroBuffer[6];
+	IMU_ReadRegister(0x06, gyroBuffer, 6);
+
+	// Change from uint16_t to int16_t
+	int16_t x_raw = (int16_t)(((uint16_t)gyroBuffer[1] << 8) | gyroBuffer[0]);
+	int16_t y_raw = (int16_t)(((uint16_t)gyroBuffer[3] << 8) | gyroBuffer[2]);
+	int16_t z_raw = (int16_t)(((uint16_t)gyroBuffer[5] << 8) | gyroBuffer[4]);
+
+	float x = (float)x_raw / 131.0f;
+	float y = (float)y_raw / 131.0f;
+	float z = (float)z_raw / 131.0f;
+
+	gyroReadings[0] = x;
+	gyroReadings[1] = y;
+	gyroReadings[2] = z;
+}
+
+void IMU_CalibrateGyro(float *gyroOffset) {
+	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+
+	const uint32_t samples = 1000;
+	float x_sum = 0, y_sum = 0, z_sum = 0;
+
+	float gyroReadings[3];
+	for(int i = 0; i < samples; i++) {
+		IMU_ReadGyro(gyroReadings);
+		x_sum += gyroReadings[0];
+		y_sum += gyroReadings[1];
+		z_sum += gyroReadings[2];
+		HAL_Delay(1);
+	}
+
+	gyroOffset[0] = x_sum / (float) samples;
+	gyroOffset[1] = y_sum / (float) samples;
+	gyroOffset[2] = z_sum / (float) samples;
+
+	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -99,6 +200,11 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
+  // Enable CPU timer
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -112,15 +218,67 @@ int main(void)
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
+  bool imu_connected = false;
+  uint8_t whoAmIBuf[1] = {0x00};
+  for (int attempts = 0; attempts < 5; attempts++) {
+	  IMU_ReadRegister(0x72, whoAmIBuf, 1);
+	  if (whoAmIBuf[0] == 0xe5) {
+		  imu_connected = true;
+		  break;
+	  }
+  }
+
+  bool imu_initialized = false;
+  if (imu_connected) {
+	  bool imu_init_failed = false;
+
+	  // Set to low noise mode
+	  imu_init_failed |= !IMU_TryWriteRegister(0x10, 0x0F, 5);
+
+	  // Set to +- 4g accel res
+	  imu_init_failed |= !IMU_TryWriteRegister(0x1B, 0b0110110, 5);
+
+	  // Set to 250 dps gyro res
+	  imu_init_failed |= !IMU_TryWriteRegister(0x1C, 0b01000110, 5);
+
+	  imu_initialized = !imu_init_failed;
+  }
+
+  float gyroOffset[3];
+  IMU_CalibrateGyro(gyroOffset);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t tickTime = DWT->CYCCNT;
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	  float gyroReadings[3];
+	  IMU_ReadGyro(gyroReadings);
+
+	  x_float = gyroReadings[0] - gyroOffset[0];
+	  y_float = gyroReadings[1] - gyroOffset[1];
+	  z_float = gyroReadings[2] - gyroOffset[2];
+
+	  float alpha = 0.1;
+	  x_smooth = alpha * x_float + x_smooth * (1-alpha);
+	  y_smooth = alpha * y_float + y_smooth * (1-alpha);
+	  z_smooth = alpha * z_float + z_smooth * (1-alpha);
+
+	  uint32_t tickTimeNew = DWT->CYCCNT;
+	  uint32_t delta = tickTimeNew - tickTime;
+	  float dt = (float)delta / (float)HAL_RCC_GetHCLKFreq();
+
+	  x_pos += x_smooth * dt;
+	  y_pos += y_smooth * dt;
+	  z_pos += z_smooth * dt;
+
+	  tickTime = tickTimeNew;
   }
   /* USER CODE END 3 */
 }
