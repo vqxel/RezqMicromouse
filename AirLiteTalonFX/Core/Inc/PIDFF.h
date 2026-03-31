@@ -10,10 +10,12 @@ typedef enum {
 class PIDFF {
 private:
     float kP;
+    float kI;
     float kD;
     float kV;
     float kS;
 
+    float integratedError;
     float lastError;
 
     uint32_t _lastTime;

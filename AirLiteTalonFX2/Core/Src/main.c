@@ -26,6 +26,8 @@
 #include "string.h"
 #include "math.h"
 
+#include "pmw3389_srom.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,17 +78,140 @@ static void MX_UART4_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-float x_theta = 0;
-float y_theta = 0;
-float z_theta = 0;
+double x_theta = 0;
+double y_theta = 0;
+double z_theta = 0;
 
-float x_accel = 0;
-float y_accel = 0;
-float z_accel = 0;
+double x_accel = 0;
+double y_accel = 0;
+double z_accel = 0;
 
-float x_velo = 0;
-float y_velo = 0;
-float z_velo = 0;
+double x_velo = 0;
+double y_velo = 0;
+double z_velo = 0;
+
+double gyroDeltaQuat[4];
+double rotation_quat[4] = {1, 0, 0, 0};
+
+volatile uint32_t us_multiplier;
+
+// Call this function inside main() BEFORE using the mouse
+void DWT_Init(void) {
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+    // Use HAL_RCC_GetHCLKFreq() here to get the exact system logic freq
+    uint32_t freq = HAL_RCC_GetHCLKFreq();
+
+    // Calculate how many ticks are in 1 microsecond
+    us_multiplier = freq / 1000000;
+}
+
+void delay_us(uint32_t us) {
+    uint32_t startTick = DWT->CYCCNT;
+    uint32_t ticksNeeded = us * us_multiplier;
+
+    while ((DWT->CYCCNT - startTick) < ticksNeeded);
+}
+
+void Mouse_ReadRegister(uint8_t addressByte, uint8_t *buffer, size_t len) {
+    uint8_t addr = addressByte & 0x7F;
+
+    HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
+    HAL_SPI_Transmit(&hspi3, &addr, 1, 100);
+    delay_us(160);
+    HAL_SPI_Receive(&hspi3, buffer, len, 100);
+    HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
+    delay_us(20);
+}
+
+void Mouse_WriteRegister(uint8_t addressByte, uint8_t value) {
+	uint8_t txData[2] = {addressByte | 0x80, value};
+
+    HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
+    HAL_SPI_Transmit(&hspi3, txData, 2, 100);
+    HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
+    delay_us(180);
+}
+
+/**
+ * @brief  Initializes the PMW3389 Sensor and uploads firmware.
+ * @return 1 if successful, 0 if SROM verification failed.
+ */
+bool Mouse_Init(void) {
+    uint8_t data = 0;
+
+    // --- PHASE 1: HARDWARE CHECK & RESET ---
+
+    // 1. Perform Soft Reset (Write 0x5A to 0x3A)
+    // Even if it "works" without this, this ensures a clean state every boot.
+    Mouse_WriteRegister(0x3A, 0x5A);
+    HAL_Delay(50); // Wait for chip reboot [cite: 521]
+
+    // 2. Verify Product ID (0x00) -> Expect 0x47
+    Mouse_ReadRegister(0x00, &data, 1);
+    if (data != 0x47) {
+        return false; // Error: SPI Connection Failed
+    }
+
+    // --- PHASE 2: SROM UPLOAD SEQUENCE ---
+    // This specific sequence "unlocks" the DSP for firmware upload.
+
+    // 3. Disable Rest Mode (Config2 0x10 -> 0x00)
+    Mouse_WriteRegister(0x10, 0x00);
+
+    Mouse_WriteRegister(0x13, 0x1D);
+    HAL_Delay(10);
+    Mouse_WriteRegister(0x13, 0x18);
+
+    HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
+
+	// B. Send Burst Load Address (0x62 | 0x80 for Write)
+	uint8_t burstAddr = 0x62 | 0x80;
+	HAL_SPI_Transmit(&hspi3, &burstAddr, 1, 100);
+
+	delay_us(15);
+
+	// D. Send Firmware Loop
+	for (int i = 0; i < FIRMWARE_LENGTH; i++) {
+		// Read byte from your header array
+		uint8_t byte = firmware_data[i];
+
+		// Transmit 1 Byte
+		HAL_SPI_Transmit(&hspi3, &byte, 1, 100);
+
+		// CRITICAL: 15us delay between bytes is required for Burst Mode
+		delay_us(15);
+	}
+
+	// E. End Transaction
+	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
+
+	// F. Allow SROM to initialize
+	delay_us(200);
+
+
+	// --- PHASE 3: VERIFICATION ---
+
+	// 8. Check SROM ID (0x2A)
+	// If successful, this will NOT be 0x00.
+	Mouse_ReadRegister(0x2A, &data, 1);
+
+    if (data == 0x00) {
+        return false; // Error: SROM Download Failed
+    }
+
+    // --- PHASE 4: FINAL CONFIGURATION ---
+
+    // 9. Force Run Mode (Config2) again to prevent auto-sleep
+    Mouse_WriteRegister(0x10, 0x00);
+
+    // (Optional) Enable Motion Burst in 0x50 if needed later
+    // Mouse_WriteRegister(0x50, ...);
+
+    return true; // Success
+}
 
 void IMU_WriteRegister(uint8_t addressByte, uint8_t value) {
 	uint8_t txData[2] = {addressByte & 0x7F, value};
@@ -131,7 +256,7 @@ bool IMU_TryWriteRegister(uint8_t addressByte, uint8_t value, uint8_t maxAttempt
 	return false;
 }
 
-void IMU_ReadGyro(float *gyroReadings) {
+void IMU_ReadGyroDegPerSec(double *gyroReadings) {
 	uint8_t gyroBuffer[6];
 	IMU_ReadRegister(0x06, gyroBuffer, 6);
 
@@ -140,34 +265,63 @@ void IMU_ReadGyro(float *gyroReadings) {
 	int16_t y_raw = (int16_t)(((uint16_t)gyroBuffer[3] << 8) | gyroBuffer[2]);
 	int16_t z_raw = (int16_t)(((uint16_t)gyroBuffer[5] << 8) | gyroBuffer[4]);
 
-	gyroReadings[0] = (float)x_raw / 32.8f; // Pitch (pitch down/ccw from left is +)
-	gyroReadings[1] = (float)y_raw / 32.8f; // Roll (roll ccw from back is +)
-	gyroReadings[2] = (float)z_raw / 32.8f; // Yaw (ccw + from top)
+	gyroReadings[0] = (double)x_raw / -32.8; // Pitch (pitch down/ccw from left is +) NOTE: Gyro is mounted backwards
+	gyroReadings[1] = (double)y_raw / -32.8; // Roll (roll ccw from back is +) NOTE: Gyro is mounted backwards
+	gyroReadings[2] = (double)z_raw / 32.8; // Yaw (ccw + from top)
 }
 
-void IMU_CalibrateGyro(float *gyroOffset) {
+void IMU_ReadGyroRadPerSec(double *gyroReadings) {
+	IMU_ReadGyroDegPerSec(gyroReadings);
+
+	gyroReadings[0] = gyroReadings[0] / 180 * M_PI;
+	gyroReadings[1] = gyroReadings[1] / 180 * M_PI;
+	gyroReadings[2] = gyroReadings[2] / 180 * M_PI;
+}
+
+void IMU_GenInstQuat(double *quat, double *gyroReadings, double dt) {
+	double vecMagSq = gyroReadings[0]*gyroReadings[0] + gyroReadings[1]*gyroReadings[1] + gyroReadings[2]*gyroReadings[2];
+
+	if (vecMagSq < 1e-10) {
+	  // No rotation: Identity quaternion
+	  quat[0] = 1.0; quat[1] = 0.0; quat[2] = 0.0; quat[3] = 0.0;
+	} else {
+	  double vecMag = sqrt(vecMagSq);
+	  double quatTheta = dt * vecMag;
+	  // TODO: Consider small angle approx for sin and cos
+	  double sinD2 = sin(quatTheta / 2.0);
+
+	  quat[0] = cos(quatTheta / 2.0);
+	  // Note: (gyroReadings[i] / vecMag) * sinD2
+	  double scale = sinD2 / vecMag;
+	  quat[1] = gyroReadings[0] * scale;
+	  quat[2] = gyroReadings[1] * scale;
+	  quat[3] = gyroReadings[2] * scale;
+	}
+}
+
+void IMU_CalibrateGyro(double *gyroOffset) {
 	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
 
 	const uint32_t samples = 1000;
-	float x_sum = 0, y_sum = 0, z_sum = 0;
+	double x_sum = 0, y_sum = 0, z_sum = 0;
 
-	float gyroReadings[3];
+	double gyroReadings[3];
 	for(int i = 0; i < samples; i++) {
-		IMU_ReadGyro(gyroReadings);
+		IMU_ReadGyroRadPerSec(gyroReadings);
 		x_sum += gyroReadings[0];
 		y_sum += gyroReadings[1];
 		z_sum += gyroReadings[2];
 		HAL_Delay(1);
 	}
 
-	gyroOffset[0] = x_sum / (float) samples;
-	gyroOffset[1] = y_sum / (float) samples;
-	gyroOffset[2] = z_sum / (float) samples;
+	gyroOffset[0] = x_sum / (double) samples;
+	gyroOffset[1] = y_sum / (double) samples;
+	gyroOffset[2] = z_sum / (double) samples;
 
 	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
 }
 
-void IMU_ReadAccel(float *accelReadings) {
+void IMU_ReadAccel(double *accelReadings) {
 	uint8_t accelBuffer[6];
 	IMU_ReadRegister(0x00, accelBuffer, 6);
 
@@ -176,19 +330,49 @@ void IMU_ReadAccel(float *accelReadings) {
 	int16_t y_raw = (int16_t)(((uint16_t)accelBuffer[3] << 8) | accelBuffer[2]);
 	int16_t z_raw = (int16_t)(((uint16_t)accelBuffer[5] << 8) | accelBuffer[4]);
 
-	accelReadings[0] = (float)x_raw / 8192.0f * 9.80665; // + x is left
-	accelReadings[1] = -(float)y_raw / 8192.0f * 9.80665; // + y is forwards
-	accelReadings[2] = (float)z_raw / 8192.0f * 9.80665; // + z is up
+	accelReadings[0] = (double)x_raw / -8192.0 * 9.80665; // + x is right NOTE: Inverted from physical mounting
+	accelReadings[1] = (double)y_raw / -8192.0 * 9.80665; // + y is forwards NOTE: Inverted from physical mounting
+	accelReadings[2] = (double)z_raw / 8192.0 * 9.80665; // + z is up
 }
 
+void IMU_GenGravQuat(double *quat, double *accelReadings) {
+	double vecMagSq = accelReadings[0]*accelReadings[0] + accelReadings[1]*accelReadings[1] + accelReadings[2]*accelReadings[2];
 
-void IMU_CalibrateAccel(float *accelOffset) {
+	if (vecMagSq < 1e-10) {
+	  // No rotation: Identity quaternion
+	  quat[0] = 1.0; quat[1] = 0.0; quat[2] = 0.0; quat[3] = 0.0;
+	} else {
+	  double vecMag = sqrt(vecMagSq);
+
+	  double quatTheta = acos(accelReadings[2] / vecMag);
+	  double rotationAxis[3] = {accelReadings[1], -accelReadings[0], 0};
+	  double rotationAxisMag = sqrt(rotationAxis[0]*rotationAxis[0]+rotationAxis[1]*rotationAxis[1]+rotationAxis[2]*rotationAxis[2]);
+
+	  if (rotationAxisMag < 1e-10) {
+		  // Already vertical, no rotation needed
+		  quat[0] = 1.0; quat[1] = 0.0; quat[2] = 0.0; quat[3] = 0.0;
+	  } else {
+		  rotationAxis[0] /= rotationAxisMag;
+		  rotationAxis[1] /= rotationAxisMag;
+		  rotationAxis[2] /= rotationAxisMag;
+
+		  // TODO: Consider small angle approx for sin and cos
+		  double sinD2 = sin(quatTheta / 2.0);
+		  quat[0] = cos(quatTheta / 2.0);
+		  quat[1] = rotationAxis[0] * sinD2;
+		  quat[2] = rotationAxis[1] * sinD2;
+		  quat[3] = 0; //rotationAxis[2] * sinD2; -> 0
+	  }
+	}
+}
+
+void IMU_CalibrateAccel(double *accelOffset) {
 	HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
 
 	const uint32_t samples = 1000;
-	float x_sum = 0, y_sum = 0, z_sum = 0;
+	double x_sum = 0, y_sum = 0, z_sum = 0;
 
-	float accelReadings[3];
+	double accelReadings[3];
 	for(int i = 0; i < samples; i++) {
 		IMU_ReadAccel(accelReadings);
 		x_sum += accelReadings[0];
@@ -197,11 +381,61 @@ void IMU_CalibrateAccel(float *accelOffset) {
 		HAL_Delay(1);
 	}
 
-	accelOffset[0] = x_sum / (float) samples;
-	accelOffset[1] = y_sum / (float) samples;
-	accelOffset[2] = z_sum / (float) samples;
+	accelOffset[0] = x_sum / (double) samples;
+	accelOffset[1] = y_sum / (double) samples;
+	accelOffset[2] = z_sum / (double) samples;
 
 	HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+}
+
+bool IMU_Init() {
+	bool imu_connected = false;
+	uint8_t whoAmIBuf[1] = {0x00};
+	for (int attempts = 0; attempts < 5; attempts++) {
+	  IMU_ReadRegister(0x72, whoAmIBuf, 1);
+	  if (whoAmIBuf[0] == 0xe5) {
+		  imu_connected = true;
+		  break;
+	  }
+	}
+
+	bool imu_initialized = false;
+	if (imu_connected) {
+	  bool imu_init_failed = false;
+
+	  // Set to low noise mode
+	  imu_init_failed |= !IMU_TryWriteRegister(0x10, 0x0F, 5);
+
+	  // Set to +- 4g accel res
+	  imu_init_failed |= !IMU_TryWriteRegister(0x1B, 0b0110110, 5);
+
+	  // Set to 1000 dps gyro res
+	  imu_init_failed |= !IMU_TryWriteRegister(0x1C, 0b00100110, 5);
+
+	  imu_initialized = !imu_init_failed;
+	}
+
+	return imu_initialized;
+}
+
+void Quaternion_Multiply(double *out, const double *q, const double *p) {
+	// q * p NOT p * q
+    double w = q[0]*p[0] - q[1]*p[1] - q[2]*p[2] - q[3]*p[3];
+    double x = q[0]*p[1] + q[1]*p[0] + q[2]*p[3] - q[3]*p[2];
+    double y = q[0]*p[2] - q[1]*p[3] + q[2]*p[0] + q[3]*p[1];
+    double z = q[0]*p[3] + q[1]*p[2] - q[2]*p[1] + q[3]*p[0];
+
+    out[0] = w;
+    out[1] = x;
+    out[2] = y;
+    out[3] = z;
+}
+
+void Quaternion_Normalize(double *q) {
+    double mag = sqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
+    if (mag > 1e-10) {
+        q[0] /= mag; q[1] /= mag; q[2] /= mag; q[3] /= mag;
+    }
 }
 
 /* USER CODE END 0 */
@@ -232,9 +466,7 @@ int main(void)
   /* USER CODE BEGIN SysInit */
 
   // Enable CPU timer
-  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-  DWT->CYCCNT = 0;
-  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+  DWT_Init();
 
   /* USER CODE END SysInit */
 
@@ -249,37 +481,40 @@ int main(void)
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
-  bool imu_connected = false;
-  uint8_t whoAmIBuf[1] = {0x00};
-  for (int attempts = 0; attempts < 5; attempts++) {
-	  IMU_ReadRegister(0x72, whoAmIBuf, 1);
-	  if (whoAmIBuf[0] == 0xe5) {
-		  imu_connected = true;
-		  break;
-	  }
-  }
+  // TODO: On the kirk it somehow works without me following the required startup reset procedure lol xd !
+  /*uint8_t buffer[1] = {0x67};
+  Mouse_ReadRegister(0x10, buffer, 1);
+  Mouse_WriteRegister(0x10, 0x00);
+  Mouse_ReadRegister(0x10, buffer, 1);*/
+  //Mouse_Init();
 
-  bool imu_initialized = false;
-  if (imu_connected) {
-	  bool imu_init_failed = false;
+  // RESET SPI (high low high)
 
-	  // Set to low noise mode
-	  imu_init_failed |= !IMU_TryWriteRegister(0x10, 0x0F, 5);
+  uint8_t buffer[1] = {0x67};
 
-	  // Set to +- 4g accel res
-	  imu_init_failed |= !IMU_TryWriteRegister(0x1B, 0b0110110, 5);
+	/*Mouse_WriteRegister(0x3A, 0x5A);
+    HAL_Delay(50); // Wait for chip reboot [cite: 521]
 
-	  // Set to 1000 dps gyro res
-	  imu_init_failed |= !IMU_TryWriteRegister(0x1C, 0b00100110, 5);
+    // 2. Verify Product ID (0x00) -> Expect 0x47
+    Mouse_ReadRegister(0x00, buffer, 1);
+    if (buffer[0] != 0x47) {
+        return 0; // Error: SPI Connection Failed
+    }*/
 
-	  imu_initialized = !imu_init_failed;
-  }
+  bool mouse_connected = Mouse_Init();
 
-  float gyroOffset[3];
+
+  bool imu_connected = IMU_Init();
+
+  double gyroOffset[3];
   IMU_CalibrateGyro(gyroOffset);
 
-  float accelOffset[3];
-  IMU_CalibrateAccel(accelOffset);
+  //double accelOffset[3];
+  //IMU_CalibrateAccel(accelOffset);
+
+  double accelReadings[3];
+  IMU_ReadAccel(accelReadings);
+  IMU_GenGravQuat(rotation_quat, accelReadings);
 
   /* USER CODE END 2 */
 
@@ -292,31 +527,48 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  float gyroReadings[3];
-	  IMU_ReadGyro(gyroReadings);
-
-	  float x_float = gyroReadings[0] - gyroOffset[0];
-	  float y_float = gyroReadings[1] - gyroOffset[1];
-	  float z_float = gyroReadings[2] - gyroOffset[2];
+	  double gyroReadings[3];
+	  IMU_ReadGyroRadPerSec(gyroReadings);
 
 	  uint32_t tickTimeNew = DWT->CYCCNT;
 	  uint32_t delta = tickTimeNew - tickTime;
-	  float dt = (float)delta / (float)HAL_RCC_GetHCLKFreq();
+	  double dt = (double)delta / (double)HAL_RCC_GetHCLKFreq();
 	  tickTime = tickTimeNew;
 
-	  x_theta += x_float * dt;
-	  y_theta += y_float * dt;
-	  z_theta += z_float * dt;
+	  gyroReadings[0] -= gyroOffset[0];
+	  gyroReadings[1] -= gyroOffset[1];
+	  gyroReadings[2] -= gyroOffset[2];
 
-	  float accelReadings[3];
+	  x_theta += gyroReadings[0] * dt;
+	  y_theta += gyroReadings[1] * dt;
+	  z_theta += gyroReadings[2] * dt;
+
+
+	  IMU_GenInstQuat(gyroDeltaQuat, gyroReadings, dt);
+
+	  Quaternion_Multiply(rotation_quat, rotation_quat, gyroDeltaQuat);
+	  Quaternion_Normalize(rotation_quat);
+
+	  double accelReadings[3];
 	  IMU_ReadAccel(accelReadings);
-	  x_accel = accelReadings[0] - accelOffset[0];
-	  y_accel = accelReadings[1] - accelOffset[1 ];
-	  z_accel = accelReadings[2] - accelOffset[2];
+	  x_accel = accelReadings[0];
+	  y_accel = accelReadings[1];
+	  z_accel = accelReadings[2];
 
-	  x_velo += x_accel * dt;
-	  y_velo += y_accel * dt;
-	  z_velo += z_accel * dt;
+	  double quatGrav[4];
+	  IMU_GenGravQuat(quatGrav, accelReadings);
+
+	  //Quaternion_Multiply(rotation_quat, rotation_quat, quatGrav);
+
+
+	  double tiltAngleRad = 2.0 * acos(quatGrav[0]);
+	  tiltAngleRad = 2.0 * acos(rotation_quat[0]);
+	  //tiltAngleRad = 2.0 * acos(gyroDeltaQuat[0]) / dt;
+
+	  // Convert to degrees for readability
+	  x_velo = tiltAngleRad * (180.0 / M_PI);
+	  //y_velo += x_theta * dt;
+	  //z_velo += y_theta * dt;
   }
   /* USER CODE END 3 */
 }
@@ -472,10 +724,10 @@ static void MX_SPI3_Init(void)
   hspi3.Init.Mode = SPI_MODE_MASTER;
   hspi3.Init.Direction = SPI_DIRECTION_2LINES;
   hspi3.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi3.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi3.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi3.Init.NSS = SPI_NSS_SOFT;
-  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
