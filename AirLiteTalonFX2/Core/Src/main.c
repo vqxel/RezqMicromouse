@@ -90,7 +90,6 @@ double x_velo = 0;
 double y_velo = 0;
 double z_velo = 0;
 
-double gyroDeltaQuat[4];
 double rotation_quat[4] = {1, 0, 0, 0};
 
 volatile uint32_t us_multiplier;
@@ -113,6 +112,53 @@ void delay_us(uint32_t us) {
     uint32_t ticksNeeded = us * us_multiplier;
 
     while ((DWT->CYCCNT - startTick) < ticksNeeded);
+}
+
+void Quaternion_Multiply(double *out, const double *q, const double *p) {
+	// q * p NOT p * q
+    double w = q[0]*p[0] - q[1]*p[1] - q[2]*p[2] - q[3]*p[3];
+    double x = q[0]*p[1] + q[1]*p[0] + q[2]*p[3] - q[3]*p[2];
+    double y = q[0]*p[2] - q[1]*p[3] + q[2]*p[0] + q[3]*p[1];
+    double z = q[0]*p[3] + q[1]*p[2] - q[2]*p[1] + q[3]*p[0];
+
+    out[0] = w;
+    out[1] = x;
+    out[2] = y;
+    out[3] = z;
+}
+
+void Quaternion_Normalize(double *q) {
+    double mag = sqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
+    if (mag > 1e-10) {
+        q[0] /= mag; q[1] /= mag; q[2] /= mag; q[3] /= mag;
+    }
+}
+
+void Quaternion_To_Euler(const double quat[4], double euler[3]) {
+    // Extract for readability (assuming quat[0] is w)
+    double w = quat[0];
+    double x = quat[1];
+    double y = quat[2];
+    double z = quat[3];
+
+    // 1. X-axis Rotation (Roll)
+    double sinr_cosp = 2.0 * (w * x + y * z);
+    double cosr_cosp = 1.0 - 2.0 * (x * x + y * y);
+    euler[0] = atan2(sinr_cosp, cosr_cosp);
+
+    // 2. Y-axis Rotation (Pitch)
+    double sinp = 2.0 * (w * y - z * x);
+    // Protect against floating point errors pushing sinp slightly outside [-1, 1]
+    if (fabs(sinp) >= 1.0) {
+        euler[1] = copysign(M_PI / 2.0, sinp); // Lock to +/- 90 degrees
+    } else {
+        euler[1] = asin(sinp);
+    }
+
+    // 3. Z-axis Rotation (Yaw)
+    double siny_cosp = 2.0 * (w * z + x * y);
+    double cosy_cosp = 1.0 - 2.0 * (y * y + z * z);
+    euler[2] = atan2(siny_cosp, cosy_cosp);
 }
 
 void Mouse_ReadRegister(uint8_t addressByte, uint8_t *buffer, size_t len) {
@@ -278,6 +324,12 @@ void IMU_ReadGyroRadPerSec(double *gyroReadings) {
 	gyroReadings[2] = gyroReadings[2] / 180 * M_PI;
 }
 
+void IMU_ApplyGyroOffset(double *gyroReadings, double *gyroOffset) {
+	  gyroReadings[0] -= gyroOffset[0];
+	  gyroReadings[1] -= gyroOffset[1];
+	  gyroReadings[2] -= gyroOffset[2];
+}
+
 void IMU_GenInstQuat(double *quat, double *gyroReadings, double dt) {
 	double vecMagSq = gyroReadings[0]*gyroReadings[0] + gyroReadings[1]*gyroReadings[1] + gyroReadings[2]*gyroReadings[2];
 
@@ -366,26 +418,64 @@ void IMU_GenGravQuat(double *quat, double *accelReadings) {
 	}
 }
 
-void IMU_CalibrateAccel(double *accelOffset) {
-	HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+void IMU_GyroAccelMadgwickFilter(double beta, double *rotationQuat, double *gyroReadings, double *accelReadings, double dt) {
+	// Beta Tuning parameter: higher = trust accel more, lower = trust gyro more
 
-	const uint32_t samples = 1000;
-	double x_sum = 0, y_sum = 0, z_sum = 0;
+	double gyroDeltaQuat[4];
+	IMU_GenInstQuat(gyroDeltaQuat, gyroReadings, dt);
 
-	double accelReadings[3];
-	for(int i = 0; i < samples; i++) {
-		IMU_ReadAccel(accelReadings);
-		x_sum += accelReadings[0];
-		y_sum += accelReadings[1];
-		z_sum += accelReadings[2];
-		HAL_Delay(1);
+	Quaternion_Multiply(rotation_quat, rotation_quat, gyroDeltaQuat);
+	Quaternion_Normalize(rotation_quat);
+
+	double ax = accelReadings[0];
+	double ay = accelReadings[1];
+	double az = accelReadings[2];
+
+	// Only apply correction if the accelerometer is valid (not in 0g freefall)
+	if (!((ax == 0.0) && (ay == 0.0) && (az == 0.0))) {
+
+		// 1. Normalize accelerometer reading
+		double recipNorm = 1.0 / sqrt(ax * ax + ay * ay + az * az);
+		ax *= recipNorm;
+		ay *= recipNorm;
+		az *= recipNorm;
+
+		// Grab the current gyro-predicted quaternion
+		double q0 = rotationQuat[0];
+		double q1 = rotationQuat[1];
+		double q2 = rotationQuat[2];
+		double q3 = rotationQuat[3];
+
+		// Pre-compute variables to save CPU cycles
+		double _2q0 = 2.0 * q0; double _2q1 = 2.0 * q1;
+		double _2q2 = 2.0 * q2; double _2q3 = 2.0 * q3;
+		double _4q0 = 4.0 * q0; double _4q1 = 4.0 * q1; double _4q2 = 4.0 * q2;
+		double _8q1 = 8.0 * q1; double _8q2 = 8.0 * q2;
+		double q0q0 = q0 * q0; double q1q1 = q1 * q1;
+		double q2q2 = q2 * q2; double q3q3 = q3 * q3;
+
+		// 2. Calculate the Gradient (Nabla f)
+		double s0 = _4q0 * q2q2 + _2q2 * ax + _4q0 * q1q1 - _2q1 * ay;
+		double s1 = _4q1 * q3q3 - _2q3 * ax + 4.0 * q0q0 * q1 - _2q0 * ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * az;
+		double s2 = 4.0 * q0q0 * q2 + _2q0 * ax + _4q2 * q3q3 - _2q3 * ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * az;
+		double s3 = 4.0 * q1q1 * q3 - _2q1 * ax + 4.0 * q2q2 * q3 - _2q2 * ay;
+
+		// 3. Normalize the Gradient
+		recipNorm = 1.0 / sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3);
+		s0 *= recipNorm;
+		s1 *= recipNorm;
+		s2 *= recipNorm;
+		s3 *= recipNorm;
+
+		// 4. Subtract the scaled error gradient from our current quaternion
+		rotationQuat[0] -= beta * s0 * dt;
+		rotationQuat[1] -= beta * s1 * dt;
+		rotationQuat[2] -= beta * s2 * dt;
+		rotationQuat[3] -= beta * s3 * dt;
+
+		// 5. Re-normalize to snap back to the 4D unit sphere
+		Quaternion_Normalize(rotationQuat);
 	}
-
-	accelOffset[0] = x_sum / (double) samples;
-	accelOffset[1] = y_sum / (double) samples;
-	accelOffset[2] = z_sum / (double) samples;
-
-	HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
 }
 
 bool IMU_Init() {
@@ -418,25 +508,6 @@ bool IMU_Init() {
 	return imu_initialized;
 }
 
-void Quaternion_Multiply(double *out, const double *q, const double *p) {
-	// q * p NOT p * q
-    double w = q[0]*p[0] - q[1]*p[1] - q[2]*p[2] - q[3]*p[3];
-    double x = q[0]*p[1] + q[1]*p[0] + q[2]*p[3] - q[3]*p[2];
-    double y = q[0]*p[2] - q[1]*p[3] + q[2]*p[0] + q[3]*p[1];
-    double z = q[0]*p[3] + q[1]*p[2] - q[2]*p[1] + q[3]*p[0];
-
-    out[0] = w;
-    out[1] = x;
-    out[2] = y;
-    out[3] = z;
-}
-
-void Quaternion_Normalize(double *q) {
-    double mag = sqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
-    if (mag > 1e-10) {
-        q[0] /= mag; q[1] /= mag; q[2] /= mag; q[3] /= mag;
-    }
-}
 
 /* USER CODE END 0 */
 
@@ -509,9 +580,6 @@ int main(void)
   double gyroOffset[3];
   IMU_CalibrateGyro(gyroOffset);
 
-  //double accelOffset[3];
-  //IMU_CalibrateAccel(accelOffset);
-
   double accelReadings[3];
   IMU_ReadAccel(accelReadings);
   IMU_GenGravQuat(rotation_quat, accelReadings);
@@ -528,119 +596,32 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 	  double gyroReadings[3];
+	  double accelReadings[3];
+
 	  IMU_ReadGyroRadPerSec(gyroReadings);
+	  IMU_ReadAccel(accelReadings);
 
 	  uint32_t tickTimeNew = DWT->CYCCNT;
 	  uint32_t delta = tickTimeNew - tickTime;
 	  double dt = (double)delta / (double)HAL_RCC_GetHCLKFreq();
 	  tickTime = tickTimeNew;
 
-	  gyroReadings[0] -= gyroOffset[0];
-	  gyroReadings[1] -= gyroOffset[1];
-	  gyroReadings[2] -= gyroOffset[2];
+	  IMU_ApplyGyroOffset(gyroReadings, gyroOffset);
 
-	  x_theta += gyroReadings[0] * dt;
-	  y_theta += gyroReadings[1] * dt;
-	  z_theta += gyroReadings[2] * dt;
+	  IMU_GyroAccelMadgwickFilter(0.1, rotation_quat, gyroReadings, accelReadings, dt);
 
+	  double rotationEuler[3];
+	  Quaternion_To_Euler(rotation_quat, rotationEuler);
 
-	  IMU_GenInstQuat(gyroDeltaQuat, gyroReadings, dt);
+	  // Convert to degrees and assign correctly based on your mounting
+	  double pitchDeg = rotationEuler[0] * (180.0 / M_PI);
+	  double rollDeg  = rotationEuler[1] * (180.0 / M_PI);
+	  double yawDeg  = rotationEuler[2] * (180.0 / M_PI);
 
-	  double gyroMadQuat[4] = {0, gyroReadings[0]/2, gyroReadings[1]/2, gyroReadings[2]/2, gyroReadings[3]/2};
-	  double rotationQuatRawPrime[4];
-	  Quaternion_Multiply(rotationQuatRawPrime, rotation_quat, gyroMadQuat);
-	  Quaternion_Normalize(rotationQuatRawPrime);
+	  x_velo = pitchDeg;
+	  y_velo = rollDeg;
+	  z_velo = yawDeg;
 
-	  Quaternion_Multiply(rotation_quat, rotation_quat, gyroDeltaQuat);
-	  Quaternion_Normalize(rotation_quat);
-
-	  double accelReadings[3];
-	  IMU_ReadAccel(accelReadings);
-	  x_accel = accelReadings[0];
-	  y_accel = accelReadings[1];
-	  z_accel = accelReadings[2];
-
-	  double quatGrav[4];
-	  IMU_GenGravQuat(quatGrav, accelReadings);
-
-	  double beta = 0.1; // Tuning parameter: higher = trust accel more, lower = trust gyro more
-
-	  	double ax = accelReadings[0];
-	  	double ay = accelReadings[1];
-	  	double az = accelReadings[2];
-
-	  	// Only apply correction if the accelerometer is valid (not in 0g freefall)
-	  	if (!((ax == 0.0) && (ay == 0.0) && (az == 0.0))) {
-
-			// 1. Normalize accelerometer reading
-			double recipNorm = 1.0 / sqrt(ax * ax + ay * ay + az * az);
-			ax *= recipNorm;
-			ay *= recipNorm;
-			az *= recipNorm;
-
-			// Grab the current gyro-predicted quaternion
-			double q0 = rotation_quat[0];
-			double q1 = rotation_quat[1];
-			double q2 = rotation_quat[2];
-			double q3 = rotation_quat[3];
-
-			// Pre-compute variables to save CPU cycles
-			double _2q0 = 2.0 * q0; double _2q1 = 2.0 * q1;
-			double _2q2 = 2.0 * q2; double _2q3 = 2.0 * q3;
-			double _4q0 = 4.0 * q0; double _4q1 = 4.0 * q1; double _4q2 = 4.0 * q2;
-			double _8q1 = 8.0 * q1; double _8q2 = 8.0 * q2;
-			double q0q0 = q0 * q0; double q1q1 = q1 * q1;
-			double q2q2 = q2 * q2; double q3q3 = q3 * q3;
-
-			// 2. Calculate the Gradient (Nabla f)
-			double s0 = _4q0 * q2q2 + _2q2 * ax + _4q0 * q1q1 - _2q1 * ay;
-			double s1 = _4q1 * q3q3 - _2q3 * ax + 4.0 * q0q0 * q1 - _2q0 * ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * az;
-			double s2 = 4.0 * q0q0 * q2 + _2q0 * ax + _4q2 * q3q3 - _2q3 * ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * az;
-			double s3 = 4.0 * q1q1 * q3 - _2q1 * ax + 4.0 * q2q2 * q3 - _2q2 * ay;
-
-			// 3. Normalize the Gradient
-			recipNorm = 1.0 / sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3);
-			s0 *= recipNorm;
-			s1 *= recipNorm;
-			s2 *= recipNorm;
-			s3 *= recipNorm;
-
-			// 4. Subtract the scaled error gradient from our current quaternion
-			rotation_quat[0] -= beta * s0 * dt;
-			rotation_quat[1] -= beta * s1 * dt;
-			rotation_quat[2] -= beta * s2 * dt;
-			rotation_quat[3] -= beta * s3 * dt;
-
-			// 5. Re-normalize to snap back to the 4D unit sphere
-			Quaternion_Normalize(rotation_quat);
-		}
-
-	  //Quaternion_Multiply(rotation_quat, rotation_quat, quatGrav);
-
-
-	double sinr_cosp = 2.0 * (rotation_quat[0] * rotation_quat[1] + rotation_quat[2] * rotation_quat[3]);
-	double cosr_cosp = 1.0 - 2.0 * (rotation_quat[1] * rotation_quat[1] + rotation_quat[2] * rotation_quat[2]);
-	double xAxisRad = atan2(sinr_cosp, cosr_cosp);
-
-	// Calculate Rotation around Y-axis (Which is ROLL on your hardware)
-	double sinp = 2.0 * (rotation_quat[0] * rotation_quat[2] - rotation_quat[3] * rotation_quat[1]);
-	double yAxisRad;
-	if (fabs(sinp) >= 1.0) {
-		yAxisRad = copysign(M_PI / 2.0, sinp); // Lock to 90 degrees if out of bounds
-	} else {
-		yAxisRad = asin(sinp);
-	}
-
-	// Convert to degrees and assign correctly based on your mounting
-	double pitchDeg = xAxisRad * (180.0 / M_PI);
-	double rollDeg  = yAxisRad * (180.0 / M_PI);
-
-	// Assign to your velocity/tilt tracking variables
-	// (You'll need to map pitch and roll to whichever physical axis x_velo represents)
-	x_velo = rollDeg;
-	y_velo = pitchDeg;
-	  //y_velo += x_theta * dt;
-	  //z_velo += y_theta * dt;
   }
   /* USER CODE END 3 */
 }
