@@ -29,8 +29,6 @@
 #include "imu.h"
 #include "mouse.h"
 
-#include "pmw3389_srom.h"
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -161,14 +159,14 @@ int main(void)
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
-  bool mouse_connected = Mouse_Init();
-  bool imu_connected = IMU_Init();
+  bool mouse_connected = Mouse_Init(&hspi3);
+  bool imu_connected = IMU_Init(&hspi1);
 
   double gyroOffset[3];
-  IMU_CalibrateGyro(gyroOffset);
+  IMU_CalibrateGyro(&hspi1, gyroOffset);
 
   double accelReadings[3];
-  IMU_ReadAccel(accelReadings);
+  IMU_ReadAccel(&hspi1, accelReadings);
   IMU_GenGravQuat(rotation_quat, accelReadings);
 
   /* USER CODE END 2 */
@@ -185,8 +183,8 @@ int main(void)
 	  double gyroReadings[3];
 	  double accelReadings[3];
 
-	  IMU_ReadGyroRadPerSec(gyroReadings);
-	  IMU_ReadAccel(accelReadings);
+	  IMU_ReadGyroRadPerSec(&hspi1, gyroReadings);
+	  IMU_ReadAccel(&hspi1, accelReadings);
 
 	  uint32_t tickTimeNew = DWT->CYCCNT;
 	  uint32_t delta = tickTimeNew - tickTime;

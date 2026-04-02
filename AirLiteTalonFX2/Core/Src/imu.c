@@ -6,15 +6,15 @@
  */
 #include "imu.h"
 
-void IMU_WriteRegister(uint8_t addressByte, uint8_t value) {
+void IMU_WriteRegister(SPI_HandleTypeDef *hspi, uint8_t addressByte, uint8_t value) {
 	uint8_t txData[2] = {addressByte & 0x7F, value};
 
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi1, txData, 2, 100);
+	HAL_SPI_Transmit(hspi, txData, 2, 100);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 }
 
-void IMU_ReadRegister(uint8_t addressByte, uint8_t *buffer, size_t len) {
+void IMU_ReadRegister(SPI_HandleTypeDef *hspi, uint8_t addressByte, uint8_t *buffer, size_t len) {
 	len++;
 
 	uint8_t txData[len];
@@ -24,23 +24,23 @@ void IMU_ReadRegister(uint8_t addressByte, uint8_t *buffer, size_t len) {
 	txData[0] = addressByte | 0x80;
 
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, txData, rxData, len, 100);
+	HAL_SPI_TransmitReceive(hspi, txData, rxData, len, 100);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 
 	memcpy(buffer, &rxData[1], len--);
 }
 
-bool IMU_WriteAndValidateRegister(uint8_t addressByte, uint8_t value) {
+bool IMU_WriteAndValidateRegister(SPI_HandleTypeDef *hspi, uint8_t addressByte, uint8_t value) {
 	uint8_t buffer[1] = {0x00};
-	IMU_WriteRegister(addressByte, value);
-	IMU_ReadRegister(addressByte, buffer, 1);
+	IMU_WriteRegister(hspi, addressByte, value);
+	IMU_ReadRegister(hspi, addressByte, buffer, 1);
 
 	return buffer[0] == value;
 }
 
-bool IMU_TryWriteRegister(uint8_t addressByte, uint8_t value, uint8_t maxAttempts) {
+bool IMU_TryWriteRegister(SPI_HandleTypeDef *hspi, uint8_t addressByte, uint8_t value, uint8_t maxAttempts) {
 	for (int attempts = 0; attempts < maxAttempts; attempts++) {
-		bool success = IMU_WriteAndValidateRegister(addressByte, value);
+		bool success = IMU_WriteAndValidateRegister(hspi, addressByte, value);
 		if (success) {
 			return true;
 		}
@@ -49,9 +49,9 @@ bool IMU_TryWriteRegister(uint8_t addressByte, uint8_t value, uint8_t maxAttempt
 	return false;
 }
 
-void IMU_ReadGyroDegPerSec(double *gyroReadings) {
+void IMU_ReadGyroDegPerSec(SPI_HandleTypeDef *hspi, double *gyroReadings) {
 	uint8_t gyroBuffer[6];
-	IMU_ReadRegister(0x06, gyroBuffer, 6);
+	IMU_ReadRegister(hspi, 0x06, gyroBuffer, 6);
 
 	// Change from uint16_t to int16_t
 	int16_t x_raw = (int16_t)(((uint16_t)gyroBuffer[1] << 8) | gyroBuffer[0]);
@@ -63,8 +63,8 @@ void IMU_ReadGyroDegPerSec(double *gyroReadings) {
 	gyroReadings[2] = (double)z_raw / 32.8; // Yaw (ccw + from top)
 }
 
-void IMU_ReadGyroRadPerSec(double *gyroReadings) {
-	IMU_ReadGyroDegPerSec(gyroReadings);
+void IMU_ReadGyroRadPerSec(SPI_HandleTypeDef *hspi, double *gyroReadings) {
+	IMU_ReadGyroDegPerSec(hspi, gyroReadings);
 
 	gyroReadings[0] = gyroReadings[0] / 180 * M_PI;
 	gyroReadings[1] = gyroReadings[1] / 180 * M_PI;
@@ -98,7 +98,7 @@ void IMU_GenInstQuat(double *quat, double *gyroReadings, double dt) {
 	}
 }
 
-void IMU_CalibrateGyro(double *gyroOffset) {
+void IMU_CalibrateGyro(SPI_HandleTypeDef *hspi, double *gyroOffset) {
 	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
 
 	const uint32_t samples = 1000;
@@ -106,7 +106,7 @@ void IMU_CalibrateGyro(double *gyroOffset) {
 
 	double gyroReadings[3];
 	for(int i = 0; i < samples; i++) {
-		IMU_ReadGyroRadPerSec(gyroReadings);
+		IMU_ReadGyroRadPerSec(hspi, gyroReadings);
 		x_sum += gyroReadings[0];
 		y_sum += gyroReadings[1];
 		z_sum += gyroReadings[2];
@@ -120,9 +120,9 @@ void IMU_CalibrateGyro(double *gyroOffset) {
 	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
 }
 
-void IMU_ReadAccel(double *accelReadings) {
+void IMU_ReadAccel(SPI_HandleTypeDef *hspi, double *accelReadings) {
 	uint8_t accelBuffer[6];
-	IMU_ReadRegister(0x00, accelBuffer, 6);
+	IMU_ReadRegister(hspi, 0x00, accelBuffer, 6);
 
 	// Change from uint16_t to int16_t
 	int16_t x_raw = (int16_t)(((uint16_t)accelBuffer[1] << 8) | accelBuffer[0]);
@@ -171,8 +171,8 @@ void IMU_GyroAccelMadgwickFilter(double beta, double *rotationQuat, double *gyro
 	double gyroDeltaQuat[4];
 	IMU_GenInstQuat(gyroDeltaQuat, gyroReadings, dt);
 
-	Quaternion_Multiply(rotation_quat, rotation_quat, gyroDeltaQuat);
-	Quaternion_Normalize(rotation_quat);
+	Quaternion_Multiply(rotationQuat, rotationQuat, gyroDeltaQuat);
+	Quaternion_Normalize(rotationQuat);
 
 	double ax = accelReadings[0];
 	double ay = accelReadings[1];
@@ -225,11 +225,11 @@ void IMU_GyroAccelMadgwickFilter(double beta, double *rotationQuat, double *gyro
 	}
 }
 
-bool IMU_Init() {
+bool IMU_Init(SPI_HandleTypeDef *hspi) {
 	bool imu_connected = false;
 	uint8_t whoAmIBuf[1] = {0x00};
 	for (int attempts = 0; attempts < 5; attempts++) {
-	  IMU_ReadRegister(0x72, whoAmIBuf, 1);
+	  IMU_ReadRegister(hspi, 0x72, whoAmIBuf, 1);
 	  if (whoAmIBuf[0] == 0xe5) {
 		  imu_connected = true;
 		  break;
@@ -241,13 +241,13 @@ bool IMU_Init() {
 	  bool imu_init_failed = false;
 
 	  // Set to low noise mode
-	  imu_init_failed |= !IMU_TryWriteRegister(0x10, 0x0F, 5);
+	  imu_init_failed |= !IMU_TryWriteRegister(hspi, 0x10, 0x0F, 5);
 
 	  // Set to +- 4g accel res
-	  imu_init_failed |= !IMU_TryWriteRegister(0x1B, 0b0110110, 5);
+	  imu_init_failed |= !IMU_TryWriteRegister(hspi, 0x1B, 0b0110110, 5);
 
 	  // Set to 1000 dps gyro res
-	  imu_init_failed |= !IMU_TryWriteRegister(0x1C, 0b00100110, 5);
+	  imu_init_failed |= !IMU_TryWriteRegister(hspi, 0x1C, 0b00100110, 5);
 
 	  imu_initialized = !imu_init_failed;
 	}

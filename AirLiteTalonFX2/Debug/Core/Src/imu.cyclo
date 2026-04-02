@@ -1,0 +1,13 @@
+../Core/Src/imu.c:9:6:IMU_WriteRegister	1
+../Core/Src/imu.c:17:6:IMU_ReadRegister	1
+../Core/Src/imu.c:33:6:IMU_WriteAndValidateRegister	1
+../Core/Src/imu.c:41:6:IMU_TryWriteRegister	3
+../Core/Src/imu.c:52:6:IMU_ReadGyroDegPerSec	1
+../Core/Src/imu.c:66:6:IMU_ReadGyroRadPerSec	1
+../Core/Src/imu.c:74:6:IMU_ApplyGyroOffset	1
+../Core/Src/imu.c:80:6:IMU_GenInstQuat	2
+../Core/Src/imu.c:101:6:IMU_CalibrateGyro	2
+../Core/Src/imu.c:123:6:IMU_ReadAccel	1
+../Core/Src/imu.c:137:6:IMU_GenGravQuat	3
+../Core/Src/imu.c:168:6:IMU_GyroAccelMadgwickFilter	4
+../Core/Src/imu.c:228:6:IMU_Init	4

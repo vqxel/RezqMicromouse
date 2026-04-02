@@ -1,0 +1,3 @@
+../Core/Src/mouse.c:9:6:Mouse_ReadRegister	1
+../Core/Src/mouse.c:20:6:Mouse_WriteRegister	1
+../Core/Src/mouse.c:33:6:Mouse_Init	4

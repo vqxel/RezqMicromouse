@@ -1,0 +1,3 @@
+../Core/Src/quaternion.c:3:6:Quaternion_Multiply	1
+../Core/Src/quaternion.c:16:6:Quaternion_Normalize	2
+../Core/Src/quaternion.c:23:6:Quaternion_To_Euler	2

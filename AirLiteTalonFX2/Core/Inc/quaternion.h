@@ -8,6 +8,8 @@
 #ifndef INC_QUATERNION_H_
 #define INC_QUATERNION_H_
 
+#include "math.h"
+
 void Quaternion_Multiply(double *out, const double *q, const double *p);
 
 void Quaternion_Normalize(double *q);
