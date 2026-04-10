@@ -49,7 +49,7 @@ bool IMU_TryWriteRegister(SPI_HandleTypeDef *hspi, uint8_t addressByte, uint8_t 
 	return false;
 }
 
-void IMU_ReadGyroDegPerSec(SPI_HandleTypeDef *hspi, double *gyroReadings) {
+void IMU_ReadGyroDegPerSec(SPI_HandleTypeDef *hspi, float32_t *gyroReadings) {
 	uint8_t gyroBuffer[6];
 	IMU_ReadRegister(hspi, 0x06, gyroBuffer, 6);
 
@@ -58,12 +58,12 @@ void IMU_ReadGyroDegPerSec(SPI_HandleTypeDef *hspi, double *gyroReadings) {
 	int16_t y_raw = (int16_t)(((uint16_t)gyroBuffer[3] << 8) | gyroBuffer[2]);
 	int16_t z_raw = (int16_t)(((uint16_t)gyroBuffer[5] << 8) | gyroBuffer[4]);
 
-	gyroReadings[0] = (double)x_raw / -32.8; // Pitch (pitch down/ccw from left is +) NOTE: Gyro is mounted backwards
-	gyroReadings[1] = (double)y_raw / -32.8; // Roll (roll ccw from back is +) NOTE: Gyro is mounted backwards
-	gyroReadings[2] = (double)z_raw / 32.8; // Yaw (ccw + from top)
+	gyroReadings[0] = (float32_t)x_raw / -32.8; // Pitch (pitch down/ccw from left is +) NOTE: Gyro is mounted backwards
+	gyroReadings[1] = (float32_t)y_raw / -32.8; // Roll (roll ccw from back is +) NOTE: Gyro is mounted backwards
+	gyroReadings[2] = (float32_t)z_raw / 32.8; // Yaw (ccw + from top)
 }
 
-void IMU_ReadGyroRadPerSec(SPI_HandleTypeDef *hspi, double *gyroReadings) {
+void IMU_ReadGyroRadPerSec(SPI_HandleTypeDef *hspi, float32_t *gyroReadings) {
 	IMU_ReadGyroDegPerSec(hspi, gyroReadings);
 
 	gyroReadings[0] = gyroReadings[0] / 180 * M_PI;
@@ -71,40 +71,40 @@ void IMU_ReadGyroRadPerSec(SPI_HandleTypeDef *hspi, double *gyroReadings) {
 	gyroReadings[2] = gyroReadings[2] / 180 * M_PI;
 }
 
-void IMU_ApplyGyroOffset(double *gyroReadings, double *gyroOffset) {
+void IMU_ApplyGyroOffset(float32_t *gyroReadings, float32_t *gyroOffset) {
 	  gyroReadings[0] -= gyroOffset[0];
 	  gyroReadings[1] -= gyroOffset[1];
 	  gyroReadings[2] -= gyroOffset[2];
 }
 
-void IMU_GenInstQuat(double *quat, double *gyroReadings, double dt) {
-	double vecMagSq = gyroReadings[0]*gyroReadings[0] + gyroReadings[1]*gyroReadings[1] + gyroReadings[2]*gyroReadings[2];
+void IMU_GenInstQuat(float32_t *quat, float32_t *gyroReadings, float32_t dt) {
+	float32_t vecMagSq = gyroReadings[0]*gyroReadings[0] + gyroReadings[1]*gyroReadings[1] + gyroReadings[2]*gyroReadings[2];
 
 	if (vecMagSq < 1e-10) {
 	  // No rotation: Identity quaternion
 	  quat[0] = 1.0; quat[1] = 0.0; quat[2] = 0.0; quat[3] = 0.0;
 	} else {
-	  double vecMag = sqrt(vecMagSq);
-	  double quatTheta = dt * vecMag;
+	  float32_t vecMag = sqrtf(vecMagSq);
+	  float32_t quatTheta = dt * vecMag;
 	  // TODO: Consider small angle approx for sin and cos
-	  double sinD2 = sin(quatTheta / 2.0);
+	  float32_t sinD2 = arm_sin_f32(quatTheta / 2.0);
 
-	  quat[0] = cos(quatTheta / 2.0);
+	  quat[0] = arm_cos_f32(quatTheta / 2.0);
 	  // Note: (gyroReadings[i] / vecMag) * sinD2
-	  double scale = sinD2 / vecMag;
+	  float32_t scale = sinD2 / vecMag;
 	  quat[1] = gyroReadings[0] * scale;
 	  quat[2] = gyroReadings[1] * scale;
 	  quat[3] = gyroReadings[2] * scale;
 	}
 }
 
-void IMU_CalibrateGyro(SPI_HandleTypeDef *hspi, double *gyroOffset) {
+void IMU_CalibrateGyro(SPI_HandleTypeDef *hspi, float32_t *gyroOffset) {
 	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
 
 	const uint32_t samples = 1000;
-	double x_sum = 0, y_sum = 0, z_sum = 0;
+	float32_t x_sum = 0, y_sum = 0, z_sum = 0;
 
-	double gyroReadings[3];
+	float32_t gyroReadings[3];
 	for(int i = 0; i < samples; i++) {
 		IMU_ReadGyroRadPerSec(hspi, gyroReadings);
 		x_sum += gyroReadings[0];
@@ -113,14 +113,14 @@ void IMU_CalibrateGyro(SPI_HandleTypeDef *hspi, double *gyroOffset) {
 		HAL_Delay(1);
 	}
 
-	gyroOffset[0] = x_sum / (double) samples;
-	gyroOffset[1] = y_sum / (double) samples;
-	gyroOffset[2] = z_sum / (double) samples;
+	gyroOffset[0] = x_sum / (float32_t) samples;
+	gyroOffset[1] = y_sum / (float32_t) samples;
+	gyroOffset[2] = z_sum / (float32_t) samples;
 
 	HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
 }
 
-void IMU_ReadAccel(SPI_HandleTypeDef *hspi, double *accelReadings) {
+void IMU_ReadAccel(SPI_HandleTypeDef *hspi, float32_t *accelReadings) {
 	uint8_t accelBuffer[6];
 	IMU_ReadRegister(hspi, 0x00, accelBuffer, 6);
 
@@ -129,23 +129,23 @@ void IMU_ReadAccel(SPI_HandleTypeDef *hspi, double *accelReadings) {
 	int16_t y_raw = (int16_t)(((uint16_t)accelBuffer[3] << 8) | accelBuffer[2]);
 	int16_t z_raw = (int16_t)(((uint16_t)accelBuffer[5] << 8) | accelBuffer[4]);
 
-	accelReadings[0] = (double)x_raw / -8192.0 * 9.80665; // + x is right NOTE: Inverted from physical mounting
-	accelReadings[1] = (double)y_raw / -8192.0 * 9.80665; // + y is forwards NOTE: Inverted from physical mounting
-	accelReadings[2] = (double)z_raw / 8192.0 * 9.80665; // + z is up
+	accelReadings[0] = (float32_t)x_raw / -8192.0 * 9.80665; // + x is right NOTE: Inverted from physical mounting
+	accelReadings[1] = (float32_t)y_raw / -8192.0 * 9.80665; // + y is forwards NOTE: Inverted from physical mounting
+	accelReadings[2] = (float32_t)z_raw / 8192.0 * 9.80665; // + z is up
 }
 
-void IMU_GenGravQuat(double *quat, double *accelReadings) {
-	double vecMagSq = accelReadings[0]*accelReadings[0] + accelReadings[1]*accelReadings[1] + accelReadings[2]*accelReadings[2];
+void IMU_GenGravQuat(float32_t *quat, float32_t *accelReadings) {
+	float32_t vecMagSq = accelReadings[0]*accelReadings[0] + accelReadings[1]*accelReadings[1] + accelReadings[2]*accelReadings[2];
 
 	if (vecMagSq < 1e-10) {
 	  // No rotation: Identity quaternion
 	  quat[0] = 1.0; quat[1] = 0.0; quat[2] = 0.0; quat[3] = 0.0;
 	} else {
-	  double vecMag = sqrt(vecMagSq);
+	  float32_t vecMag = sqrtf(vecMagSq);
 
-	  double quatTheta = acos(accelReadings[2] / vecMag);
-	  double rotationAxis[3] = {accelReadings[1], -accelReadings[0], 0};
-	  double rotationAxisMag = sqrt(rotationAxis[0]*rotationAxis[0]+rotationAxis[1]*rotationAxis[1]+rotationAxis[2]*rotationAxis[2]);
+	  float32_t quatTheta = arm_cos_f32(accelReadings[2] / vecMag);
+	  float32_t rotationAxis[3] = {accelReadings[1], -accelReadings[0], 0};
+	  float32_t rotationAxisMag = sqrtf(rotationAxis[0]*rotationAxis[0]+rotationAxis[1]*rotationAxis[1]+rotationAxis[2]*rotationAxis[2]);
 
 	  if (rotationAxisMag < 1e-10) {
 		  // Already vertical, no rotation needed
@@ -156,8 +156,8 @@ void IMU_GenGravQuat(double *quat, double *accelReadings) {
 		  rotationAxis[2] /= rotationAxisMag;
 
 		  // TODO: Consider small angle approx for sin and cos
-		  double sinD2 = sin(quatTheta / 2.0);
-		  quat[0] = cos(quatTheta / 2.0);
+		  float32_t sinD2 = arm_sin_f32(quatTheta / 2.0);
+		  quat[0] = arm_cos_f32(quatTheta / 2.0);
 		  quat[1] = rotationAxis[0] * sinD2;
 		  quat[2] = rotationAxis[1] * sinD2;
 		  quat[3] = 0; //rotationAxis[2] * sinD2; -> 0
@@ -165,50 +165,50 @@ void IMU_GenGravQuat(double *quat, double *accelReadings) {
 	}
 }
 
-void IMU_GyroAccelMadgwickFilter(double beta, double *rotationQuat, double *gyroReadings, double *accelReadings, double dt) {
+void IMU_GyroAccelMadgwickFilter(float32_t beta, float32_t *rotationQuat, float32_t *gyroReadings, float32_t *accelReadings, float32_t dt) {
 	// Beta Tuning parameter: higher = trust accel more, lower = trust gyro more
 
-	double gyroDeltaQuat[4];
+	float32_t gyroDeltaQuat[4];
 	IMU_GenInstQuat(gyroDeltaQuat, gyroReadings, dt);
 
 	Quaternion_Multiply(rotationQuat, rotationQuat, gyroDeltaQuat);
 	Quaternion_Normalize(rotationQuat);
 
-	double ax = accelReadings[0];
-	double ay = accelReadings[1];
-	double az = accelReadings[2];
+	float32_t ax = accelReadings[0];
+	float32_t ay = accelReadings[1];
+	float32_t az = accelReadings[2];
 
 	// Only apply correction if the accelerometer is valid (not in 0g freefall)
 	if (!((ax == 0.0) && (ay == 0.0) && (az == 0.0))) {
 
 		// 1. Normalize accelerometer reading
-		double recipNorm = 1.0 / sqrt(ax * ax + ay * ay + az * az);
+		float32_t recipNorm = 1.0 / sqrtf(ax * ax + ay * ay + az * az);
 		ax *= recipNorm;
 		ay *= recipNorm;
 		az *= recipNorm;
 
 		// Grab the current gyro-predicted quaternion
-		double q0 = rotationQuat[0];
-		double q1 = rotationQuat[1];
-		double q2 = rotationQuat[2];
-		double q3 = rotationQuat[3];
+		float32_t q0 = rotationQuat[0];
+		float32_t q1 = rotationQuat[1];
+		float32_t q2 = rotationQuat[2];
+		float32_t q3 = rotationQuat[3];
 
 		// Pre-compute variables to save CPU cycles
-		double _2q0 = 2.0 * q0; double _2q1 = 2.0 * q1;
-		double _2q2 = 2.0 * q2; double _2q3 = 2.0 * q3;
-		double _4q0 = 4.0 * q0; double _4q1 = 4.0 * q1; double _4q2 = 4.0 * q2;
-		double _8q1 = 8.0 * q1; double _8q2 = 8.0 * q2;
-		double q0q0 = q0 * q0; double q1q1 = q1 * q1;
-		double q2q2 = q2 * q2; double q3q3 = q3 * q3;
+		float32_t _2q0 = 2.0 * q0; float32_t _2q1 = 2.0 * q1;
+		float32_t _2q2 = 2.0 * q2; float32_t _2q3 = 2.0 * q3;
+		float32_t _4q0 = 4.0 * q0; float32_t _4q1 = 4.0 * q1; float32_t _4q2 = 4.0 * q2;
+		float32_t _8q1 = 8.0 * q1; float32_t _8q2 = 8.0 * q2;
+		float32_t q0q0 = q0 * q0; float32_t q1q1 = q1 * q1;
+		float32_t q2q2 = q2 * q2; float32_t q3q3 = q3 * q3;
 
 		// 2. Calculate the Gradient (Nabla f)
-		double s0 = _4q0 * q2q2 + _2q2 * ax + _4q0 * q1q1 - _2q1 * ay;
-		double s1 = _4q1 * q3q3 - _2q3 * ax + 4.0 * q0q0 * q1 - _2q0 * ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * az;
-		double s2 = 4.0 * q0q0 * q2 + _2q0 * ax + _4q2 * q3q3 - _2q3 * ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * az;
-		double s3 = 4.0 * q1q1 * q3 - _2q1 * ax + 4.0 * q2q2 * q3 - _2q2 * ay;
+		float32_t s0 = _4q0 * q2q2 + _2q2 * ax + _4q0 * q1q1 - _2q1 * ay;
+		float32_t s1 = _4q1 * q3q3 - _2q3 * ax + 4.0 * q0q0 * q1 - _2q0 * ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * az;
+		float32_t s2 = 4.0 * q0q0 * q2 + _2q0 * ax + _4q2 * q3q3 - _2q3 * ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * az;
+		float32_t s3 = 4.0 * q1q1 * q3 - _2q1 * ax + 4.0 * q2q2 * q3 - _2q2 * ay;
 
 		// 3. Normalize the Gradient
-		recipNorm = 1.0 / sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3);
+		recipNorm = 1.0 / sqrtf(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3);
 		s0 *= recipNorm;
 		s1 *= recipNorm;
 		s2 *= recipNorm;

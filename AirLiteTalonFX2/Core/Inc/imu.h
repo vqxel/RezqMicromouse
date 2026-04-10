@@ -12,6 +12,7 @@
 #include "stdbool.h"
 #include "stdint.h"
 #include "math.h"
+#include "arm_math.h"
 #include "main.h"
 #include "quaternion.h"
 
@@ -23,21 +24,21 @@ bool IMU_WriteAndValidateRegister(SPI_HandleTypeDef *hspi, uint8_t addressByte, 
 
 bool IMU_TryWriteRegister(SPI_HandleTypeDef *hspi, uint8_t addressByte, uint8_t value, uint8_t maxAttempts);
 
-void IMU_ReadGyroDegPerSec(SPI_HandleTypeDef *hspi, double *gyroReadings);
+void IMU_ReadGyroDegPerSec(SPI_HandleTypeDef *hspi, float32_t *gyroReadings);
 
-void IMU_ReadGyroRadPerSec(SPI_HandleTypeDef *hspi, double *gyroReadings);
+void IMU_ReadGyroRadPerSec(SPI_HandleTypeDef *hspi, float32_t *gyroReadings);
 
-void IMU_ApplyGyroOffset(double *gyroReadings, double *gyroOffset);
+void IMU_ApplyGyroOffset(float32_t *gyroReadings, float32_t *gyroOffset);
 
-void IMU_GenInstQuat(double *quat, double *gyroReadings, double dt);
+void IMU_GenInstQuat(float32_t *quat, float32_t *gyroReadings, float32_t dt);
 
-void IMU_CalibrateGyro(SPI_HandleTypeDef *hspi, double *gyroOffset);
+void IMU_CalibrateGyro(SPI_HandleTypeDef *hspi, float32_t *gyroOffset);
 
-void IMU_ReadAccel(SPI_HandleTypeDef *hspi, double *accelReadings);
+void IMU_ReadAccel(SPI_HandleTypeDef *hspi, float32_t *accelReadings);
 
-void IMU_GenGravQuat(double *quat, double *accelReadings);
+void IMU_GenGravQuat(float32_t *quat, float32_t *accelReadings);
 
-void IMU_GyroAccelMadgwickFilter(double beta, double *rotationQuat, double *gyroReadings, double *accelReadings, double dt);
+void IMU_GyroAccelMadgwickFilter(float32_t beta, float32_t *rotationQuat, float32_t *gyroReadings, float32_t *accelReadings, float32_t dt);
 
 bool IMU_Init(SPI_HandleTypeDef *hspi);
 

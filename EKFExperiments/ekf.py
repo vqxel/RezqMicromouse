@@ -44,6 +44,7 @@ def gen_transition_jacobian(state, dt):
     1    0    -v * sin(theta)* dt    cos(theta) * dt    0
     0    1    v * cos(theta) * dt    sin(theta) * dt    0
     0    0    1                      0                  dt
+    0    0    0                      1                  0
     0    0    0                      0                  1
     '''
     return jacob

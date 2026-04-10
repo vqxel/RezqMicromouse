@@ -1,6 +1,6 @@
 ../Core/Src/main.c:101:6:DWT_Init	16	static
 ../Core/Src/main.c:113:6:delay_us	24	static
-../Core/Src/main.c:127:5:main	160	static
+../Core/Src/main.c:127:5:main	96	static
 ../Core/Src/main.c:217:6:SystemClock_Config	88	static
 ../Core/Src/main.c:259:13:MX_ADC1_Init	24	static
 ../Core/Src/main.c:311:13:MX_SPI1_Init	8	static

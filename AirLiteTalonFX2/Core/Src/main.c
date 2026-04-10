@@ -24,7 +24,7 @@
 #include "stdbool.h"
 #include "stdlib.h"
 #include "string.h"
-#include "math.h"
+#include "arm_math.h"
 
 #include "imu.h"
 #include "mouse.h"
@@ -81,19 +81,19 @@ static void MX_UART4_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-double x_theta = 0;
-double y_theta = 0;
-double z_theta = 0;
+float32_t x_theta = 0;
+float32_t y_theta = 0;
+float32_t z_theta = 0;
 
-double x_accel = 0;
-double y_accel = 0;
-double z_accel = 0;
+float32_t x_accel = 0;
+float32_t y_accel = 0;
+float32_t z_accel = 0;
 
-double x_velo = 0;
-double y_velo = 0;
-double z_velo = 0;
+float32_t x_velo = 0;
+float32_t y_velo = 0;
+float32_t z_velo = 0;
 
-double rotation_quat[4] = {1, 0, 0, 0};
+float32_t rotation_quat[4] = {1, 0, 0, 0};
 
 volatile uint32_t us_multiplier;
 
@@ -164,10 +164,10 @@ int main(void)
   bool mouse_connected = Mouse_Init(&hspi3);
   bool imu_connected = IMU_Init(&hspi1);
 
-  double gyroOffset[3];
+  float32_t gyroOffset[3];
   IMU_CalibrateGyro(&hspi1, gyroOffset);
 
-  double accelReadings[3];
+  float32_t accelReadings[3];
   IMU_ReadAccel(&hspi1, accelReadings);
   IMU_GenGravQuat(rotation_quat, accelReadings);
 
@@ -184,22 +184,22 @@ int main(void)
 
 	  EKF_Test();
 
-	  double gyroReadings[3];
-	  double accelReadings[3];
+	  float32_t gyroReadings[3];
+	  float32_t accelReadings[3];
 
 	  IMU_ReadGyroRadPerSec(&hspi1, gyroReadings);
 	  IMU_ReadAccel(&hspi1, accelReadings);
 
 	  uint32_t tickTimeNew = DWT->CYCCNT;
 	  uint32_t delta = tickTimeNew - tickTime;
-	  double dt = (double)delta / (double)HAL_RCC_GetHCLKFreq();
+	  float32_t dt = (float32_t)delta / (float32_t)HAL_RCC_GetHCLKFreq();
 	  tickTime = tickTimeNew;
 
 	  IMU_ApplyGyroOffset(gyroReadings, gyroOffset);
 
 	  IMU_GyroAccelMadgwickFilter(0.1, rotation_quat, gyroReadings, accelReadings, dt);
 
-	  double rotationEuler[3];
+	  float32_t rotationEuler[3];
 	  Quaternion_To_Euler_Deg(rotation_quat, rotationEuler);
 
 	  x_velo = rotationEuler[0];
