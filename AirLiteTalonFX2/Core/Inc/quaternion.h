@@ -16,4 +16,6 @@ void Quaternion_Normalize(double *q);
 
 void Quaternion_To_Euler(const double quat[4], double euler[3]);
 
+void Quaternion_To_Euler_Deg(const double quat[4], double euler[3]);
+
 #endif /* INC_QUATERNION_H_ */

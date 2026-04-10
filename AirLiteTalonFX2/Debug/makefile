@@ -85,7 +85,7 @@ main-build: AirLiteTalonFX2.elf secondary-outputs
 
 # Tool invocations
 AirLiteTalonFX2.elf AirLiteTalonFX2.map: $(OBJS) $(USER_OBJS) /home/rezq/Documents/RezqMicromouse/AirLiteTalonFX2/STM32F405RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-g++ -o "AirLiteTalonFX2.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/rezq/Documents/RezqMicromouse/AirLiteTalonFX2/STM32F405RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="AirLiteTalonFX2.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+	arm-none-eabi-g++ -o "AirLiteTalonFX2.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/rezq/Documents/RezqMicromouse/AirLiteTalonFX2/STM32F405RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="AirLiteTalonFX2.map" -Wl,--gc-sections -static -L../Libs --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

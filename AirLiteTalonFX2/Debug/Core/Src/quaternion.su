@@ -1,3 +1,4 @@
 ../Core/Src/quaternion.c:3:6:Quaternion_Multiply	64	static
 ../Core/Src/quaternion.c:16:6:Quaternion_Normalize	32	static
 ../Core/Src/quaternion.c:23:6:Quaternion_To_Euler	104	static
+../Core/Src/quaternion.c:50:6:Quaternion_To_Euler_Deg	24	static

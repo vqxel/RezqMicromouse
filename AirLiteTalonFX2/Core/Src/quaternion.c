@@ -46,3 +46,11 @@ void Quaternion_To_Euler(const double quat[4], double euler[3]) {
     double cosy_cosp = 1.0 - 2.0 * (y * y + z * z);
     euler[2] = atan2(siny_cosp, cosy_cosp);
 }
+
+void Quaternion_To_Euler_Deg(const double quat[4], double euler[3]) {
+	Quaternion_To_Euler(quat, euler);
+
+	euler[0] = euler[0] * (180.0 / M_PI);
+	euler[1] = euler[1] * (180.0 / M_PI);
+	euler[2] = euler[2] * (180.0 / M_PI);
+}

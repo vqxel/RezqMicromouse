@@ -28,6 +28,8 @@
 
 #include "imu.h"
 #include "mouse.h"
+#include "quaternion.h"
+#include "ekf.h"
 
 /* USER CODE END Includes */
 
@@ -180,6 +182,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
+	  EKF_Test();
+
 	  double gyroReadings[3];
 	  double accelReadings[3];
 
@@ -196,16 +200,11 @@ int main(void)
 	  IMU_GyroAccelMadgwickFilter(0.1, rotation_quat, gyroReadings, accelReadings, dt);
 
 	  double rotationEuler[3];
-	  Quaternion_To_Euler(rotation_quat, rotationEuler);
+	  Quaternion_To_Euler_Deg(rotation_quat, rotationEuler);
 
-	  // Convert to degrees and assign correctly based on your mounting
-	  double pitchDeg = rotationEuler[0] * (180.0 / M_PI);
-	  double rollDeg  = rotationEuler[1] * (180.0 / M_PI);
-	  double yawDeg  = rotationEuler[2] * (180.0 / M_PI);
-
-	  x_velo = pitchDeg;
-	  y_velo = rollDeg;
-	  z_velo = yawDeg;
+	  x_velo = rotationEuler[0];
+	  y_velo = rotationEuler[1];
+	  z_velo = rotationEuler[2];
 
   }
   /* USER CODE END 3 */
