@@ -93,6 +93,12 @@ float32_t x_velo = 0;
 float32_t y_velo = 0;
 float32_t z_velo = 0;
 
+uint16_t mouse_dx_cnt = 0;
+uint16_t mouse_dy_cnt = 0;
+
+float32_t mouse_x_velo = 0;
+float32_t mouse_omega = 0;
+
 float32_t rotation_quat[4] = {1, 0, 0, 0};
 
 volatile uint32_t us_multiplier;
@@ -184,6 +190,14 @@ int main(void)
 
 	  EKF_Test();
 
+	  MouseData mouseData = {0};
+	  Mouse_MotionRead(&hspi3, &mouseData);
+
+	  uint16_t old_mouse_dx_cnt = mouse_dx_cnt;
+	  uint16_t old_mouse_dy_cnt = mouse_dy_cnt;
+	  mouse_dx_cnt += (((uint16_t) mouseData.deltaXH) << 8) | ((uint16_t) mouseData.deltaXL);
+	  mouse_dy_cnt += (((uint16_t) mouseData.deltaYH) << 8) | ((uint16_t) mouseData.deltaYL);
+
 	  float32_t gyroReadings[3];
 	  float32_t accelReadings[3];
 
@@ -204,7 +218,14 @@ int main(void)
 
 	  x_velo = rotationEuler[0];
 	  y_velo = rotationEuler[1];
-	  z_velo = rotationEuler[2];
+	  //z_velo = rotationEuler[2];
+
+	  mouse_x_velo = (((float32_t) ((int16_t) (mouse_dx_cnt - old_mouse_dx_cnt))) / 5000.0f) / dt;
+	  mouse_omega = (((float32_t) ((int16_t) (mouse_dy_cnt - old_mouse_dy_cnt))) / 5000.0f) / dt; // Inches per second
+	  mouse_omega /= 0.74212598; // Radians per second
+	  mouse_omega *= 180 / PI;
+
+	  z_velo += mouse_omega * dt;
 
   }
   /* USER CODE END 3 */
@@ -582,8 +603,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, IMU_CS_Pin|M1_FWD_Pin|M1_BACK_Pin|M2_FWD_Pin
-                          |M2_BACK_Pin|MOUSE_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, M1_FWD_Pin|M1_BACK_Pin|M2_FWD_Pin
+                          |M2_BACK_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, IMU_CS_Pin|MOUSE_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, EMIT_4_Pin|EMIT_3_Pin|EMIT_2_Pin|EMIT_1_Pin, GPIO_PIN_RESET);
