@@ -19,6 +19,9 @@
 *.dylib
 *.dll
 
+
+AirLiteTalonFX2/Core/Src/pmw3389_srom.c
+
 # Fortran module files
 *.mod
 *.smod
