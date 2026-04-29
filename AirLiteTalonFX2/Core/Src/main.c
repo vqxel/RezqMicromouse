@@ -28,6 +28,8 @@
 
 #include "imu.h"
 #include "mouse.h"
+#include "motor.h"
+#include "encoder.h"
 #include "quaternion.h"
 #include "ekf.h"
 
@@ -85,14 +87,6 @@ float32_t x_theta = 0;
 float32_t y_theta = 0;
 float32_t z_theta = 0;
 
-float32_t x_accel = 0;
-float32_t y_accel = 0;
-float32_t z_accel = 0;
-
-float32_t x_velo = 0;
-float32_t y_velo = 0;
-float32_t z_velo = 0;
-
 uint16_t mouse_dx_cnt = 0;
 uint16_t mouse_dy_cnt = 0;
 
@@ -101,7 +95,21 @@ float32_t mouse_omega = 0;
 
 float32_t rotation_quat[4] = {1, 0, 0, 0};
 
+EKF stateFilter = {0};
+
+Motor rightMotor = {0};
+Motor leftMotor = {0};
+
+Encoder rightEncoder = {0};
+Encoder leftEncoder = {0};
+
 volatile uint32_t us_multiplier;
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+	uint32_t currentCount = __HAL_TIM_GET_COUNTER(htim);
+	Encoder_Callback(&leftEncoder, htim, currentCount);
+	Encoder_Callback(&rightEncoder, htim, currentCount);
+}
 
 // Call this function inside main() BEFORE using the mouse
 void DWT_Init(void) {
@@ -177,6 +185,34 @@ int main(void)
   IMU_ReadAccel(&hspi1, accelReadings);
   IMU_GenGravQuat(rotation_quat, accelReadings);
 
+  EKF_Init(&stateFilter, 0.8f);
+
+  stateFilter.process_noise_data[EKF_CalculateIndex(5, 0, 0)] = 1e-4f; // X position variance
+  stateFilter.process_noise_data[EKF_CalculateIndex(5, 1, 1)] = 1e-4f; // Y position variance
+  stateFilter.process_noise_data[EKF_CalculateIndex(5, 2, 2)] = 1e-4f; // Yaw variance
+  stateFilter.process_noise_data[EKF_CalculateIndex(5, 3, 3)] = 1e-2f; // Linear Velocity variance
+  stateFilter.process_noise_data[EKF_CalculateIndex(5, 4, 4)] = 1e-2f; // Angular Velocity variance
+
+  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 0, 0)] = 0.1f;  // Left Encoder jitter
+  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 1, 1)] = 0.1f;  // Right Encoder jitter
+  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 2, 2)] = 0.05f; // Gyro noise (usually very low)
+  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 3, 3)] = 0.2f;  // Optical Mouse X noise
+  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 4, 4)] = 0.3f;  // Optical Mouse Y noise
+
+  bool left_motor_initialized = Motor_Init(&rightMotor, M1_FWD_GPIO_Port, M1_BACK_GPIO_Port, M1_FWD_Pin, M1_BACK_Pin, &TIM5->CCR3, &htim5, TIM_CHANNEL_3, true);
+  bool right_motor_initialized = Motor_Init(&leftMotor, M2_FWD_GPIO_Port, M2_BACK_GPIO_Port, M2_FWD_Pin, M2_BACK_Pin, &TIM5->CCR4, &htim5, TIM_CHANNEL_4, false);
+
+  bool left_encoder_initialized = Encoder_Init(&rightEncoder, &htim2, true, 1.0f / 5968.31f);
+  bool right_encoder_initialized = Encoder_Init(&leftEncoder, &htim4, false, 1.0f / 5968.31f);
+
+  if (!(mouse_connected && imu_connected && left_motor_initialized && right_motor_initialized && left_encoder_initialized && right_encoder_initialized)) {
+	  // Something didn't initialize properly
+	  for (int i = 0; i < 50; i++) {
+		  HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+		  HAL_Delay(100);
+	  }
+  }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -188,15 +224,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  EKF_Test();
-
 	  MouseData mouseData = {0};
 	  Mouse_MotionRead(&hspi3, &mouseData);
-
-	  uint16_t old_mouse_dx_cnt = mouse_dx_cnt;
-	  uint16_t old_mouse_dy_cnt = mouse_dy_cnt;
-	  mouse_dx_cnt += (((uint16_t) mouseData.deltaXH) << 8) | ((uint16_t) mouseData.deltaXL);
-	  mouse_dy_cnt += (((uint16_t) mouseData.deltaYH) << 8) | ((uint16_t) mouseData.deltaYL);
 
 	  float32_t gyroReadings[3];
 	  float32_t accelReadings[3];
@@ -209,6 +238,7 @@ int main(void)
 	  float32_t dt = (float32_t)delta / (float32_t)HAL_RCC_GetHCLKFreq();
 	  tickTime = tickTimeNew;
 
+	  // Gyro processing
 	  IMU_ApplyGyroOffset(gyroReadings, gyroOffset);
 
 	  IMU_GyroAccelMadgwickFilter(0.1, rotation_quat, gyroReadings, accelReadings, dt);
@@ -216,18 +246,26 @@ int main(void)
 	  float32_t rotationEuler[3];
 	  Quaternion_To_Euler_Deg(rotation_quat, rotationEuler);
 
-	  x_velo = rotationEuler[0];
-	  y_velo = rotationEuler[1];
-	  //z_velo = rotationEuler[2];
+	  x_theta = rotationEuler[0];
+	  y_theta = rotationEuler[1];
+	  z_theta = rotationEuler[2];
+
+
+	  // Mouse processing
+	  uint16_t old_mouse_dx_cnt = mouse_dx_cnt;
+	  uint16_t old_mouse_dy_cnt = mouse_dy_cnt;
+	  mouse_dx_cnt += (((uint16_t) mouseData.deltaXH) << 8) | ((uint16_t) mouseData.deltaXL);
+	  mouse_dy_cnt += (((uint16_t) mouseData.deltaYH) << 8) | ((uint16_t) mouseData.deltaYL);
 
 	  mouse_x_velo = (((float32_t) ((int16_t) (mouse_dx_cnt - old_mouse_dx_cnt))) / 5000.0f) / dt;
 	  mouse_omega = (((float32_t) ((int16_t) (mouse_dy_cnt - old_mouse_dy_cnt))) / 5000.0f) / dt; // Inches per second
 	  mouse_omega /= 0.74212598; // Radians per second
-	  mouse_omega *= 180 / PI;
 
-	  z_velo += mouse_omega * dt;
+	  // Encoder processing
+	  Encoder_Tick(&leftEncoder, dt);
+	  Encoder_Tick(&rightEncoder, dt);
 
-
+	  EKF_AddMeasurementAndUpdate(&stateFilter, leftEncoder.rawVeloMeters, rightEncoder.rawVeloMeters, z_theta, mouse_x_velo, mouse_omega, dt);
 
   }
   /* USER CODE END 3 */
@@ -423,10 +461,10 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
@@ -475,7 +513,7 @@ static void MX_TIM4_Init(void)
   htim4.Init.Period = 65535;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
@@ -519,11 +557,11 @@ static void MX_TIM5_Init(void)
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
-  htim5.Init.Prescaler = 0;
+  htim5.Init.Prescaler = 16;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim5.Init.Period = 4294967295;
+  htim5.Init.Period = 1024;
   htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_PWM_Init(&htim5) != HAL_OK)
   {
     Error_Handler();
@@ -600,14 +638,13 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, M1_FWD_Pin|M1_BACK_Pin|M2_FWD_Pin
-                          |M2_BACK_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GPIOA, IMU_CS_Pin|MOUSE_CS_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, IMU_CS_Pin|M1_FWD_Pin|M1_BACK_Pin|M2_FWD_Pin
+                          |M2_BACK_Pin|MOUSE_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, EMIT_4_Pin|EMIT_3_Pin|EMIT_2_Pin|EMIT_1_Pin, GPIO_PIN_RESET);

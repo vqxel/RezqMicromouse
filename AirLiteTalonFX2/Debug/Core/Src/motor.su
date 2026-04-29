@@ -1,0 +1,4 @@
+../Core/Src/motor.c:10:6:Motor_Init	24	static
+../Core/Src/motor.c:27:6:Motor_SetDirection	24	static
+../Core/Src/motor.c:52:6:Motor_SetDutyCycle	24	static
+../Core/Src/motor.c:65:6:Motor_Set	24	static

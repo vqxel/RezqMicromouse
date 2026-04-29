@@ -7,7 +7,7 @@
 
 #include "motor.h"
 
-bool Motor_Init(Motor *motor, PIO_TypeDef *forwardPort, GPIO_TypeDef *backwardPort, uint16_t forwardPin, uint16_t backwardPin, volatile uint32_t *pwmCcr, TIM_HandleTypeDef *tim, uint32_t timChannel, bool inverted) {
+bool Motor_Init(Motor *motor, GPIO_TypeDef *forwardPort, GPIO_TypeDef *backwardPort, uint16_t forwardPin, uint16_t backwardPin, volatile uint32_t *pwmCcr, TIM_HandleTypeDef *tim, uint32_t timChannel, bool inverted) {
 	motor->forwardPort = forwardPort;
 	motor->backwardPort = backwardPort;
 	motor->forwardPin = forwardPin;
@@ -30,12 +30,12 @@ void Motor_SetDirection(Motor *motor, DriveDirection direction) {
 
 	switch (direction) {
 	case FORWARD:
-		forwardPinState = inverted ? GPIO_PIN_RESET : GPIO_PIN_SET;
-		backwardPinState = inverted ? GPIO_PIN_SET : GPIO_PIN_RESET;
+		forwardPinState = motor->inverted ? GPIO_PIN_RESET : GPIO_PIN_SET;
+		backwardPinState = motor->inverted ? GPIO_PIN_SET : GPIO_PIN_RESET;
 		break;
 	case BACKWARD:
-		forwardPinState = inverted ? GPIO_PIN_SET : GPIO_PIN_RESET;
-		backwardPinState = inverted ? GPIO_PIN_RESET : GPIO_PIN_SET;
+		forwardPinState = motor->inverted ? GPIO_PIN_SET : GPIO_PIN_RESET;
+		backwardPinState = motor->inverted ? GPIO_PIN_RESET : GPIO_PIN_SET;
 		break;
 	case OFF:
 		forwardPinState = GPIO_PIN_RESET;
@@ -57,13 +57,13 @@ void Motor_SetDutyCycle(Motor *motor, float32_t dutyCycle) {
 		dutyCycle = 0;
 	}
 
-	int ccr = PWM_ARR * dutyCycle;
+	int ccr = 1024 * dutyCycle;
 
-	*pwmCcr = ccr;
+	*(motor->pwmCcr) = ccr;
 }
 
 void Motor_Set(Motor *motor, float32_t dutyCycle) {
-	float32_t absDutyCycle = abs(dutyCycle);
+	float32_t absDutyCycle = fabsf(dutyCycle);
 
 	DriveDirection extractedDirection;
 	if (absDutyCycle < motor->deadband) {
@@ -79,8 +79,8 @@ void Motor_Set(Motor *motor, float32_t dutyCycle) {
 		Motor_SetDirection(motor, extractedDirection);
 	}
 
-	if (absDutyCycle > 1) {
-		dutyCycle = 1;
+	if (absDutyCycle > 1.0f) {
+		dutyCycle = 1.0f;
 	}
 
 	Motor_SetDutyCycle(motor, absDutyCycle);

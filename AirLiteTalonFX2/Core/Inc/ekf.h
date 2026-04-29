@@ -63,6 +63,20 @@ typedef struct {
 
 } EKF;
 
-void EKF_Test();
+void EKF_Init(EKF *ekf, float32_t wheelbase);
+
+float32_t EKF_GetPosX(EKF *ekf);
+
+float32_t EKF_GetPosY(EKF *ekf);
+
+float32_t EKF_GetYaw(EKF *ekf);
+
+float32_t EKF_GetVelo(EKF *ekf);
+
+float32_t EKF_GetAngularVelo(EKF *ekf);
+
+uint16_t EKF_CalculateIndex(uint16_t cols, uint16_t row, uint16_t col);
+
+void EKF_AddMeasurementAndUpdate(EKF *ekf, float32_t leftVelo, float32_t rightVelo, float32_t gyroHeading, float32_t mouseForwardV, float32_t mouseW, float32_t dt);
 
 #endif /* INC_EKF_H_ */

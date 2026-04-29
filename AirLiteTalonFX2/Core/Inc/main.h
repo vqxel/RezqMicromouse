@@ -61,6 +61,8 @@ void delay_us(uint32_t us);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define V_METER_Pin GPIO_PIN_1
+#define V_METER_GPIO_Port GPIOC
 #define M1_ENC_A_Pin GPIO_PIN_0
 #define M1_ENC_A_GPIO_Port GPIOA
 #define M1_ENC_B_Pin GPIO_PIN_1
