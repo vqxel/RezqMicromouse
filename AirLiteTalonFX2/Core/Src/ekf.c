@@ -216,12 +216,12 @@ void EKF_UpdateFilter(EKF *ekf, float32_t dt) {
 	}
 }
 
-void EKF_AddMeasurementAndUpdate(EKF *ekf, float32_t leftVelo, float32_t rightVelo, float32_t gyroHeading, float32_t mouseForwardV, float32_t mouseW, float32_t dt) {
-	ekf->measurement_data[0] = leftVelo;
-	ekf->measurement_data[1] = rightVelo;
-	ekf->measurement_data[2] = gyroHeading;
-	ekf->measurement_data[3] = mouseForwardV;
-	ekf->measurement_data[4] = mouseW;
+void EKF_AddMeasurementAndUpdate(EKF *ekf, float32_t l_enc_v, float32_t r_enc_v, float32_t yaw, float32_t mouse_v, float32_t mouse_w, float32_t dt) {
+	ekf->measurement_data[0] = l_enc_v;
+	ekf->measurement_data[1] = r_enc_v;
+	ekf->measurement_data[2] = yaw;
+	ekf->measurement_data[3] = mouse_v;
+	ekf->measurement_data[4] = mouse_w;
 
 	EKF_UpdateFilter(ekf, dt);
 }

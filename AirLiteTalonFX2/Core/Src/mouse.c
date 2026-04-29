@@ -162,3 +162,17 @@ void Mouse_MotionRead(SPI_HandleTypeDef *hspi, MouseData *mouseData) {
 	uint8_t data = 0x67;
 	Mouse_ReadRegister(hspi, 0x00, &data);*/
 }
+
+void Mouse_GetVelocity(MouseData *data, float32_t dt, float32_t *v, float32_t *w) {
+    if (dt <= 0.0f) {
+        *v = 0.0f;
+        *w = 0.0f;
+        return;
+    }
+
+    int16_t dx = (int16_t)(((uint16_t)data->deltaXH << 8) | data->deltaXL);
+    int16_t dy = (int16_t)(((uint16_t)data->deltaYH << 8) | data->deltaYL);
+
+    *v = ((float32_t)dx / MOUSE_CPI) / dt;
+    *w = (((float32_t)dy / MOUSE_CPI) / dt) / MOUSE_OFFSET_INCHES;
+}

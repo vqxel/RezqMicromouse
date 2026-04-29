@@ -32,6 +32,7 @@
 #include "encoder.h"
 #include "quaternion.h"
 #include "ekf.h"
+#include "stat_tracker.h"
 
 /* USER CODE END Includes */
 
@@ -77,7 +78,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_UART4_Init(void);
 /* USER CODE BEGIN PFP */
-
+void CalibrateSensors(float32_t *gyroOffset, float32_t *R_gyro, float32_t *R_v, float32_t *R_w);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -87,8 +88,9 @@ float32_t x_theta = 0;
 float32_t y_theta = 0;
 float32_t z_theta = 0;
 
-uint16_t mouse_dx_cnt = 0;
-uint16_t mouse_dy_cnt = 0;
+float32_t R_gyro_yaw = 0.05f;
+float32_t R_mouse_v = 0.2f;
+float32_t R_mouse_w = 0.3f;
 
 float32_t mouse_x_velo = 0;
 float32_t mouse_omega = 0;
@@ -187,6 +189,8 @@ int main(void)
 
   EKF_Init(&stateFilter, 0.8f);
 
+  CalibrateSensors(gyroOffset, &R_gyro_yaw, &R_mouse_v, &R_mouse_w);
+
   stateFilter.process_noise_data[EKF_CalculateIndex(5, 0, 0)] = 1e-4f; // X position variance
   stateFilter.process_noise_data[EKF_CalculateIndex(5, 1, 1)] = 1e-4f; // Y position variance
   stateFilter.process_noise_data[EKF_CalculateIndex(5, 2, 2)] = 1e-4f; // Yaw variance
@@ -195,9 +199,9 @@ int main(void)
 
   stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 0, 0)] = 0.1f;  // Left Encoder jitter
   stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 1, 1)] = 0.1f;  // Right Encoder jitter
-  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 2, 2)] = 0.05f; // Gyro noise (usually very low)
-  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 3, 3)] = 0.2f;  // Optical Mouse X noise
-  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 4, 4)] = 0.3f;  // Optical Mouse Y noise
+  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 2, 2)] = R_gyro_yaw;
+  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 3, 3)] = R_mouse_v;
+  stateFilter.measurement_noise_data[EKF_CalculateIndex(5, 4, 4)] = R_mouse_w;
 
   bool left_motor_initialized = Motor_Init(&rightMotor, M1_FWD_GPIO_Port, M1_BACK_GPIO_Port, M1_FWD_Pin, M1_BACK_Pin, &TIM5->CCR3, &htim5, TIM_CHANNEL_3, true);
   bool right_motor_initialized = Motor_Init(&leftMotor, M2_FWD_GPIO_Port, M2_BACK_GPIO_Port, M2_FWD_Pin, M2_BACK_Pin, &TIM5->CCR4, &htim5, TIM_CHANNEL_4, false);
@@ -252,14 +256,7 @@ int main(void)
 
 
 	  // Mouse processing
-	  uint16_t old_mouse_dx_cnt = mouse_dx_cnt;
-	  uint16_t old_mouse_dy_cnt = mouse_dy_cnt;
-	  mouse_dx_cnt += (((uint16_t) mouseData.deltaXH) << 8) | ((uint16_t) mouseData.deltaXL);
-	  mouse_dy_cnt += (((uint16_t) mouseData.deltaYH) << 8) | ((uint16_t) mouseData.deltaYL);
-
-	  mouse_x_velo = (((float32_t) ((int16_t) (mouse_dx_cnt - old_mouse_dx_cnt))) / 5000.0f) / dt;
-	  mouse_omega = (((float32_t) ((int16_t) (mouse_dy_cnt - old_mouse_dy_cnt))) / 5000.0f) / dt; // Inches per second
-	  mouse_omega /= 0.74212598; // Radians per second
+	  Mouse_GetVelocity(&mouseData, dt, &mouse_x_velo, &mouse_omega);
 
 	  // Encoder processing
 	  Encoder_Tick(&leftEncoder, dt);
@@ -687,7 +684,45 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void CalibrateSensors(float32_t *gyroOffset, float32_t *R_gyro, float32_t *R_v, float32_t *R_w) {
+  StatTracker gyroStats = {0};
+  StatTracker mouseVStats = {0};
+  StatTracker mouseWStats = {0};
 
+  uint32_t tickTime = DWT->CYCCNT;
+
+  for (int i = 0; i < 1000; i++) {
+	  float32_t g[3];
+	  IMU_ReadGyroRadPerSec(&hspi1, g);
+	  IMU_ApplyGyroOffset(g, gyroOffset);
+	  StatTracker_Update(&gyroStats, g[2]);
+
+	  MouseData mData = {0};
+	  Mouse_MotionRead(&hspi3, &mData);
+
+	  uint32_t tickTimeNew = DWT->CYCCNT;
+	  uint32_t delta = tickTimeNew - tickTime;
+	  float32_t dt = (float32_t)delta / (float32_t)HAL_RCC_GetHCLKFreq();
+	  tickTime = tickTimeNew;
+
+	  float32_t v, w;
+	  Mouse_GetVelocity(&mData, dt, &v, &w);
+
+	  StatTracker_Update(&mouseVStats, v);
+	  StatTracker_Update(&mouseWStats, w);
+
+	  HAL_Delay(2);
+  }
+
+  *R_gyro = StatTracker_GetVariance(&gyroStats);
+  *R_v = StatTracker_GetVariance(&mouseVStats);
+  *R_w = StatTracker_GetVariance(&mouseWStats);
+
+  // Clamp to avoid zero variance
+  if (*R_gyro < 1e-6f) *R_gyro = 1e-6f;
+  if (*R_v < 1e-6f) *R_v = 1e-6f;
+  if (*R_w < 1e-6f) *R_w = 1e-6f;
+}
 /* USER CODE END 4 */
 
 /**

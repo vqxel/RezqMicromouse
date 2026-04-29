@@ -6,6 +6,7 @@
 "./Core/Src/mouse.o"
 "./Core/Src/pmw3389_srom.o"
 "./Core/Src/quaternion.o"
+"./Core/Src/stat_tracker.o"
 "./Core/Src/stm32f4xx_hal_msp.o"
 "./Core/Src/stm32f4xx_it.o"
 "./Core/Src/syscalls.o"
