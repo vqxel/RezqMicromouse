@@ -33,6 +33,7 @@
 #include "quaternion.h"
 #include "ekf.h"
 #include "stat_tracker.h"
+#include "dsens.h"
 
 /* USER CODE END Includes */
 
@@ -94,8 +95,20 @@ float32_t R_mouse_w = 0.3f;
 
 float32_t mouse_x_velo = 0;
 float32_t mouse_omega = 0;
+float32_t mouse_omega_deg = 0;
+float32_t mouse_theta_est = 0;
 
 float32_t rotation_quat[4] = {1, 0, 0, 0};
+
+float32_t flDist = 0;
+float32_t lDist = 0;
+float32_t rDist = 0;
+float32_t frDist = 0;
+
+uint32_t last_button1_time = 0;
+uint32_t last_button2_time = 0;
+uint32_t last_button3_time = 0;
+uint32_t debounce_delay = 50;
 
 EKF stateFilter = {0};
 
@@ -105,12 +118,31 @@ Motor leftMotor = {0};
 Encoder rightEncoder = {0};
 Encoder leftEncoder = {0};
 
+DSens flSens = {0};
+DSens lSens = {0};
+DSens rSens = {0};
+DSens frSens = {0};
+
 volatile uint32_t us_multiplier;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 	uint32_t currentCount = __HAL_TIM_GET_COUNTER(htim);
 	Encoder_Callback(&leftEncoder, htim, currentCount);
 	Encoder_Callback(&rightEncoder, htim, currentCount);
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	uint32_t current_tick = HAL_GetTick();
+	if(GPIO_Pin == BUTTON_1_Pin && (current_tick - last_button1_time > debounce_delay)) {
+		HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+		last_button1_time = current_tick;
+	} else if(GPIO_Pin == BUTTON_2_Pin && (current_tick - last_button2_time > debounce_delay)) {
+		HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+		last_button2_time = current_tick;
+	} else if(GPIO_Pin == BUTTON_3_Pin && (current_tick - last_button3_time > debounce_delay)) {
+		HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+		last_button3_time = current_tick;
+	}
 }
 
 // Call this function inside main() BEFORE using the mouse
@@ -209,6 +241,11 @@ int main(void)
   bool left_encoder_initialized = Encoder_Init(&rightEncoder, &htim2, true, 1.0f / 5968.31f);
   bool right_encoder_initialized = Encoder_Init(&leftEncoder, &htim4, false, 1.0f / 5968.31f);
 
+  DSens_Init(&flSens, EMIT_1_GPIO_Port, EMIT_1_Pin, &hadc1, ADC_CHANNEL_9, 309608344.0f, -2.02718f);
+  DSens_Init(&lSens, EMIT_2_GPIO_Port, EMIT_2_Pin, &hadc1, ADC_CHANNEL_8, 30089.7773f, -0.835766f);
+  DSens_Init(&rSens, EMIT_3_GPIO_Port, EMIT_3_Pin, &hadc1, ADC_CHANNEL_15, 587887.835f, -1.21735f);
+  DSens_Init(&frSens, EMIT_4_GPIO_Port, EMIT_4_Pin, &hadc1, ADC_CHANNEL_14, 1373374.48f, -1.32993f);
+
   if (!(mouse_connected && imu_connected && left_motor_initialized && right_motor_initialized && left_encoder_initialized && right_encoder_initialized)) {
 	  // Something didn't initialize properly
 	  for (int i = 0; i < 50; i++) {
@@ -257,13 +294,30 @@ int main(void)
 
 	  // Mouse processing
 	  Mouse_GetVelocity(&mouseData, dt, &mouse_x_velo, &mouse_omega);
+	  mouse_omega_deg = mouse_omega * 180 / PI;
+	  mouse_theta_est += mouse_omega_deg * dt;
 
 	  // Encoder processing
 	  Encoder_Tick(&leftEncoder, dt);
 	  Encoder_Tick(&rightEncoder, dt);
 
+	  // Distance sensor processing
+	  DSens_Update(&flSens);
+	  DSens_Update(&lSens);
+	  DSens_Update(&rSens);
+	  DSens_Update(&frSens);
+
+	  flDist = DSens_GetDist(&flSens);
+	  lDist = DSens_GetDist(&lSens);
+	  rDist = DSens_GetDist(&rSens);
+	  frDist = DSens_GetDist(&frSens);
+
 	  EKF_AddMeasurementAndUpdate(&stateFilter, leftEncoder.rawVeloMeters, rightEncoder.rawVeloMeters, z_theta, mouse_x_velo, mouse_omega, dt);
 
+	  const float32_t kp = 1;
+	  const float32_t error = 1 - EKF_GetPosX(&stateFilter);
+	  Motor_Set(&leftMotor, kp * error);
+	  Motor_Set(&rightMotor, kp * error);
   }
   /* USER CODE END 3 */
 }
@@ -667,7 +721,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : BUTTON_1_Pin BUTTON_2_Pin BUTTON_3_Pin */
   GPIO_InitStruct.Pin = BUTTON_1_Pin|BUTTON_2_Pin|BUTTON_3_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -677,6 +731,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -739,7 +797,8 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-#ifdef USE_FULL_ASSERT
+
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -755,3 +814,4 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+

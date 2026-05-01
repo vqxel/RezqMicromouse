@@ -13,6 +13,7 @@
 #include "stdbool.h"
 #include "stdint.h"
 #include "main.h"
+#include "arm_math.h"
 
 typedef struct {
 	uint8_t motion;

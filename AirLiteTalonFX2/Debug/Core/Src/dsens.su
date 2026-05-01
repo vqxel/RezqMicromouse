@@ -1,0 +1,3 @@
+../Core/Src/dsens.c:11:6:DSens_Init	32	static
+../Core/Src/dsens.c:19:6:DSens_Update	24	static
+../Core/Src/dsens.c:32:11:DSens_GetDist	24	static

@@ -2,3 +2,4 @@
 ../Core/Src/mouse.c:23:6:Mouse_WriteRegister	24	static
 ../Core/Src/mouse.c:37:6:Mouse_Init	40	static
 ../Core/Src/mouse.c:133:6:Mouse_MotionRead	24	static
+../Core/Src/mouse.c:166:6:Mouse_GetVelocity	32	static

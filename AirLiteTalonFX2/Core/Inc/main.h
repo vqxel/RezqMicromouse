@@ -97,10 +97,13 @@ void delay_us(uint32_t us);
 #define EMIT_1_GPIO_Port GPIOB
 #define BUTTON_1_Pin GPIO_PIN_13
 #define BUTTON_1_GPIO_Port GPIOB
+#define BUTTON_1_EXTI_IRQn EXTI15_10_IRQn
 #define BUTTON_2_Pin GPIO_PIN_14
 #define BUTTON_2_GPIO_Port GPIOB
+#define BUTTON_2_EXTI_IRQn EXTI15_10_IRQn
 #define BUTTON_3_Pin GPIO_PIN_15
 #define BUTTON_3_GPIO_Port GPIOB
+#define BUTTON_3_EXTI_IRQn EXTI15_10_IRQn
 #define LED_RED_Pin GPIO_PIN_6
 #define LED_RED_GPIO_Port GPIOC
 #define LED_BLUE_Pin GPIO_PIN_7

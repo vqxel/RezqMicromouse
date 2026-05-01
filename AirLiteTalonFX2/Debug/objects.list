@@ -1,3 +1,5 @@
+"./Core/Src/adchannel.o"
+"./Core/Src/dsens.o"
 "./Core/Src/ekf.o"
 "./Core/Src/encoder.o"
 "./Core/Src/imu.o"

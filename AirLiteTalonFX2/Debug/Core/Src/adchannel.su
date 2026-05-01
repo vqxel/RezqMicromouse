@@ -1,0 +1,3 @@
+../Core/Src/adchannel.c:10:6:ADCChannel_Init	24	static
+../Core/Src/adchannel.c:19:6:ADCChannel_Config	16	static
+../Core/Src/adchannel.c:26:6:ADCChannel_Poll	16	static

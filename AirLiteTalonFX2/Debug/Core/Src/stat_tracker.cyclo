@@ -1,0 +1,4 @@
+../Core/Src/stat_tracker.c:11:6:StatTracker_Reset	1
+../Core/Src/stat_tracker.c:15:6:StatTracker_Update	1
+../Core/Src/stat_tracker.c:23:11:StatTracker_GetVariance	2
+../Core/Src/stat_tracker.c:28:11:StatTracker_GetMean	1
